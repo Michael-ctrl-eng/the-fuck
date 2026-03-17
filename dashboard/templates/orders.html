@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Orders - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h2>Orders</h2>
+
+<div style="margin-bottom: 1rem;">
+    <select id="status-filter" style="width: auto; display: inline-block;">
+        <option value="">All Orders</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+    </select>
+</div>
+
+<div id="orders-container"></div>
+
+<!-- Order Detail Modal -->
+<dialog id="order-modal">
+    <article style="min-width: 600px;">
+        <header><h3 id="order-title"></h3></header>
+        <div id="order-detail"></div>
+        <footer>
+            <button class="secondary" onclick="document.getElementById('order-modal').close()">Close</button>
+        </footer>
+    </article>
+</dialog>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+const tenantId = '{{ tenant_id }}';
+const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+
+document.getElementById('status-filter').addEventListener('change', loadOrders);
+
+async function loadOrders() {
+    const status = document.getElementById('status-filter').value;
+    const url = `/api/tenants/${tenantId}/orders${status ? `?status=${status}` : ''}`;
+    const resp = await fetch(url, {headers});
+    const data = await resp.json();
+    const container = document.getElementById('orders-container');
+
+    if (data.orders.length === 0) {
+        container.innerHTML = '<p>No orders yet.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.orders.map(o => `
+                    <tr>
+                        <td><a href="#" onclick="showOrder('${o.id}')">${o.order_number}</a></td>
+                        <td>${o.customer_name}</td>
+                        <td>${o.customer_phone}</td>
+                        <td>৳${o.total}</td>
+                        <td><span class="badge badge-${o.status}">${o.status}</span></td>
+                        <td>${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
+                        <td>
+                            ${o.status === 'pending' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'confirmed')">Confirm</button>` : ''}
+                            ${o.status === 'confirmed' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'shipped')">Ship</button>` : ''}
+                            ${o.status === 'shipped' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'delivered')">Delivered</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <small>Total: ${data.total} orders</small>
+    `;
+}
+
+async function showOrder(id) {
+    const resp = await fetch(`/api/tenants/${tenantId}/orders/${id}`, {headers});
+    const o = await resp.json();
+    document.getElementById('order-title').textContent = `Order ${o.order_number}`;
+    document.getElementById('order-detail').innerHTML = `
+        <table>
+            <tr><td><strong>Customer</strong></td><td>${o.customer_name}</td></tr>
+            <tr><td><strong>Phone</strong></td><td>${o.customer_phone}</td></tr>
+            <tr><td><strong>Address</strong></td><td>${o.address_detail}, ${o.upazila || ''}, ${o.district}, ${o.division}</td></tr>
+            <tr><td><strong>Payment</strong></td><td>${o.payment_method.toUpperCase()}</td></tr>
+            <tr><td><strong>Status</strong></td><td><span class="badge badge-${o.status}">${o.status}</span></td></tr>
+        </table>
+        <h4>Items</h4>
+        <table>
+            <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+            <tbody>
+                ${o.items.map(i => `<tr><td>${i.product_name}</td><td>${i.quantity}</td><td>৳${i.unit_price}</td><td>৳${i.total_price}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        <p><strong>Subtotal:</strong> ৳${o.subtotal} | <strong>Delivery:</strong> ৳${o.delivery_charge} | <strong>Total:</strong> ৳${o.total}</p>
+    `;
+    document.getElementById('order-modal').showModal();
+}
+
+async function updateStatus(id, status) {
+    await fetch(`/api/tenants/${tenantId}/orders/${id}/status`, {
+        method: 'PATCH', headers, body: JSON.stringify({status})
+    });
+    loadOrders();
+}
+
+loadOrders();
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Conversations - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h2>Conversations</h2>
+
+<div id="conversations-container"></div>
+
+<dialog id="conv-modal">
+    <article style="min-width: 600px; max-height: 80vh;">
+        <header><h3 id="conv-title"></h3></header>
+        <div class="chat-container" id="conv-messages" style="max-height: 400px;"></div>
+        <footer>
+            <button class="secondary" onclick="document.getElementById('conv-modal').close()">Close</button>
+        </footer>
+    </article>
+</dialog>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+const tenantId = '{{ tenant_id }}';
+const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+
+async function loadConversations() {
+    const resp = await fetch(`/api/tenants/${tenantId}/conversations`, {headers});
+    const data = await resp.json();
+    const container = document.getElementById('conversations-container');
+
+    if (data.conversations.length === 0) {
+        container.innerHTML = '<p>No conversations yet. Use Test Chat to start one.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table>
+            <thead><tr><th>Customer</th><th>Status</th><th>Last Message</th><th>Action</th></tr></thead>
+            <tbody>
+                ${data.conversations.map(c => `
+                    <tr>
+                        <td>${c.customer_name || 'Unknown'}</td>
+                        <td><span class="badge badge-${c.status}">${c.status}</span></td>
+                        <td>${new Date(c.last_message_at).toLocaleString('en-BD')}</td>
+                        <td><button class="outline" style="padding:0.2rem 0.5rem;" onclick="showConv('${c.id}')">View</button></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+async function showConv(id) {
+    const resp = await fetch(`/api/tenants/${tenantId}/conversations/${id}`, {headers});
+    const data = await resp.json();
+    document.getElementById('conv-title').textContent = `Chat with ${data.customer_name || 'Customer'}`;
+    document.getElementById('conv-messages').innerHTML = data.messages.map(m => `
+        <div class="chat-message ${m.role}">
+            <div class="chat-bubble">${m.content}</div>
+        </div>
+    `).join('');
+    document.getElementById('conv-modal').showModal();
+    document.getElementById('conv-messages').scrollTop = document.getElementById('conv-messages').scrollHeight;
+}
+
+loadConversations();
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Test Chat - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h2>Test Chat</h2>
+<p>Simulate customer conversations without Facebook. Type messages as a customer would.</p>
+
+<div class="chat-container" id="chat-box">
+    <div class="chat-message assistant">
+        <div class="chat-bubble">Assalamu Alaikum! How can I help you today? 😊</div>
+    </div>
+</div>
+
+<form id="chat-form" style="display: flex; gap: 0.5rem;">
+    <input type="text" id="message-input" placeholder="Type a message... (Bangla, Banglish, or English)" style="flex: 1;" autofocus>
+    <button type="submit" style="width: auto;">Send</button>
+</form>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+
+const tenantId = '{{ tenant_id }}';
+const chatBox = document.getElementById('chat-box');
+const form = document.getElementById('chat-form');
+const input = document.getElementById('message-input');
+
+function addMessage(text, role) {
+    const div = document.createElement('div');
+    div.className = `chat-message ${role}`;
+    div.innerHTML = `<div class="chat-bubble">${text}</div>`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    addMessage(msg, 'customer');
+    input.value = '';
+    input.disabled = true;
+
+    // Show typing indicator
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message assistant';
+    typingDiv.id = 'typing';
+    typingDiv.innerHTML = '<div class="chat-bubble" aria-busy="true">Typing...</div>';
+    chatBox.appendChild(typingDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+        const resp = await fetch('/api/test/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+            body: JSON.stringify({tenant_id: tenantId, message: msg, customer_name: 'Test Customer'})
+        });
+        const data = await resp.json();
+
+        document.getElementById('typing')?.remove();
+
+        if (resp.ok) {
+            addMessage(data.reply, 'assistant');
+        } else {
+            addMessage(`Error: ${data.detail || 'Failed to get response'}`, 'assistant');
+        }
+    } catch(e) {
+        document.getElementById('typing')?.remove();
+        addMessage('Network error. Please check your connection.', 'assistant');
+    }
+
+    input.disabled = false;
+    input.focus();
+});
+</script>
+{% endblock %}

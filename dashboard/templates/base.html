@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mama Sales Agent{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        :root {
+            --pico-font-size: 16px;
+        }
+        nav {
+            background: var(--pico-primary-background);
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+        }
+        nav ul {
+            margin: 0;
+        }
+        nav a {
+            color: var(--pico-primary-inverse) !important;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .stat-card h2 {
+            margin: 0;
+            font-size: 2rem;
+            color: var(--pico-primary);
+        }
+        .stat-card p {
+            margin: 0.5rem 0 0;
+            color: var(--pico-muted-color);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .badge-pending { background: #fef3cd; color: #856404; }
+        .badge-confirmed { background: #d1ecf1; color: #0c5460; }
+        .badge-shipped { background: #d4edda; color: #155724; }
+        .badge-delivered { background: #c3e6cb; color: #155724; }
+        .badge-cancelled { background: #f8d7da; color: #721c24; }
+        .badge-active { background: #d1ecf1; color: #0c5460; }
+        .badge-in_stock { background: #d4edda; color: #155724; }
+        .badge-out_of_stock { background: #f8d7da; color: #721c24; }
+        .chat-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: var(--pico-card-background-color);
+        }
+        .chat-message {
+            margin-bottom: 1rem;
+            display: flex;
+        }
+        .chat-message.customer {
+            justify-content: flex-start;
+        }
+        .chat-message.assistant {
+            justify-content: flex-end;
+        }
+        .chat-bubble {
+            max-width: 70%;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        .customer .chat-bubble {
+            background: var(--pico-muted-border-color);
+        }
+        .assistant .chat-bubble {
+            background: var(--pico-primary);
+            color: var(--pico-primary-inverse);
+        }
+        .flash-message {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><strong><a href="/dashboard">Mama Sales Agent</a></strong></li>
+        </ul>
+        <ul>
+            {% if tenant_id %}
+            <li><a href="/dashboard/{{ tenant_id }}/chat">Test Chat</a></li>
+            <li><a href="/dashboard/{{ tenant_id }}/products">Products</a></li>
+            <li><a href="/dashboard/{{ tenant_id }}/orders">Orders</a></li>
+            <li><a href="/dashboard/{{ tenant_id }}/conversations">Conversations</a></li>
+            <li><a href="/dashboard/{{ tenant_id }}/crawl">Crawl</a></li>
+            <li><a href="/dashboard/{{ tenant_id }}/settings">Settings</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <hr>
+        <p><small>Mama Sales Agent v0.1.0 | AI-powered sales for Bangladeshi businesses</small></p>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

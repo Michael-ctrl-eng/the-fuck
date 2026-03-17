@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Settings - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h2>Settings</h2>
+
+<article>
+    <header><h3>Business Settings</h3></header>
+    <form id="settings-form">
+        <label>Business Name</label>
+        <input type="text" id="page_name" required>
+
+        <label>Website URL</label>
+        <input type="url" id="website_url" placeholder="https://yourstore.com">
+
+        <label>Business Email (for order notifications)</label>
+        <input type="email" id="business_email">
+
+        <label>Phone Number</label>
+        <input type="text" id="business_phone" placeholder="01712345678">
+
+        <label>Facebook Page ID</label>
+        <input type="text" id="fb_page_id" placeholder="Your FB Page ID">
+
+        <label>Page Access Token</label>
+        <input type="text" id="page_access_token" placeholder="Long-lived page access token">
+        <small>Get this from <a href="https://developers.facebook.com/tools/explorer/" target="_blank">Facebook Graph API Explorer</a></small>
+
+        <label>Notification Preference</label>
+        <select id="notification_pref">
+            <option value="email">Email</option>
+            <option value="sms">SMS</option>
+            <option value="messenger">Messenger</option>
+        </select>
+
+        <button type="submit">Save Settings</button>
+    </form>
+</article>
+
+<article>
+    <header><h3>Quick Stats</h3></header>
+    <div class="stats-grid" id="stats-container">Loading...</div>
+</article>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+const tenantId = '{{ tenant_id }}';
+const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+
+async function loadSettings() {
+    const resp = await fetch(`/api/tenants/${tenantId}`, {headers});
+    const t = await resp.json();
+
+    document.getElementById('page_name').value = t.page_name || '';
+    document.getElementById('website_url').value = t.website_url || '';
+    document.getElementById('business_email').value = t.business_email || '';
+    document.getElementById('business_phone').value = t.business_phone || '';
+    document.getElementById('fb_page_id').value = t.fb_page_id || '';
+    document.getElementById('notification_pref').value = t.notification_pref || 'email';
+}
+
+async function loadStats() {
+    const resp = await fetch(`/api/tenants/${tenantId}/stats`, {headers});
+    const s = await resp.json();
+    document.getElementById('stats-container').innerHTML = `
+        <article class="stat-card"><h2>${s.products_count}</h2><p>Products</p></article>
+        <article class="stat-card"><h2>${s.orders_count}</h2><p>Total Orders</p></article>
+        <article class="stat-card"><h2>${s.pending_orders}</h2><p>Pending</p></article>
+        <article class="stat-card"><h2>${s.active_conversations}</h2><p>Active Chats</p></article>
+        <article class="stat-card"><h2>৳${s.total_revenue.toLocaleString()}</h2><p>Revenue</p></article>
+    `;
+}
+
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        page_name: document.getElementById('page_name').value,
+        website_url: document.getElementById('website_url').value || null,
+        business_email: document.getElementById('business_email').value || null,
+        business_phone: document.getElementById('business_phone').value || null,
+        page_access_token: document.getElementById('page_access_token').value || null,
+        notification_pref: document.getElementById('notification_pref').value,
+    };
+    const resp = await fetch(`/api/tenants/${tenantId}`, {
+        method: 'PATCH', headers, body: JSON.stringify(body)
+    });
+    if (resp.ok) alert('Settings saved!');
+});
+
+loadSettings();
+loadStats();
+</script>
+{% endblock %}

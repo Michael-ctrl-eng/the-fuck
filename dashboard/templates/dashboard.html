@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div id="no-tenant" style="display:none;">
+    <article>
+        <header><h3>Setup Your Business</h3></header>
+        <p>Create your first business to get started.</p>
+        <form id="create-tenant-form">
+            <label for="page_name">Business / Page Name</label>
+            <input type="text" id="page_name" required placeholder="My Fashion Store">
+
+            <label for="website_url">Website URL (optional, for crawling)</label>
+            <input type="url" id="website_url" placeholder="https://mystore.com">
+
+            <label for="business_email">Business Email (for notifications)</label>
+            <input type="email" id="business_email" placeholder="owner@store.com">
+
+            <label for="business_phone">Phone Number</label>
+            <input type="text" id="business_phone" placeholder="01712345678">
+
+            <label for="fb_page_id">Facebook Page ID (optional)</label>
+            <input type="text" id="fb_page_id" placeholder="123456789">
+
+            <label for="page_access_token">Page Access Token (optional)</label>
+            <input type="text" id="page_access_token" placeholder="Paste your FB page access token">
+
+            <button type="submit">Create Business</button>
+        </form>
+    </article>
+</div>
+
+<div id="tenant-list" style="display:none;">
+    <h3>Your Businesses</h3>
+    <div id="tenants-container"></div>
+</div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+
+const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+
+async function loadTenants() {
+    const resp = await fetch('/api/tenants', {headers});
+    if (resp.status === 401) { localStorage.removeItem('token'); window.location.href = '/dashboard/login'; return; }
+    const tenants = await resp.json();
+
+    if (tenants.length === 0) {
+        document.getElementById('no-tenant').style.display = 'block';
+    } else {
+        document.getElementById('tenant-list').style.display = 'block';
+        const container = document.getElementById('tenants-container');
+        container.innerHTML = tenants.map(t => `
+            <article>
+                <header>
+                    <h4>${t.page_name}</h4>
+                    ${t.website_url ? `<small>${t.website_url}</small>` : ''}
+                </header>
+                <div class="grid">
+                    <a href="/dashboard/${t.id}/chat" role="button">Test Chat</a>
+                    <a href="/dashboard/${t.id}/products" role="button" class="secondary">Products</a>
+                    <a href="/dashboard/${t.id}/orders" role="button" class="secondary">Orders</a>
+                    <a href="/dashboard/${t.id}/settings" role="button" class="outline">Settings</a>
+                </div>
+            </article>
+        `).join('');
+    }
+}
+
+document.getElementById('create-tenant-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        page_name: document.getElementById('page_name').value,
+        website_url: document.getElementById('website_url').value || null,
+        business_email: document.getElementById('business_email').value || null,
+        business_phone: document.getElementById('business_phone').value || null,
+        fb_page_id: document.getElementById('fb_page_id').value || null,
+        page_access_token: document.getElementById('page_access_token').value || null,
+    };
+    const resp = await fetch('/api/tenants', {method: 'POST', headers, body: JSON.stringify(body)});
+    if (resp.ok) window.location.reload();
+});
+
+loadTenants();
+</script>
+{% endblock %}

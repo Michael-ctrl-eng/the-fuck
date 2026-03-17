@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Crawl Website - Mama Sales Agent{% endblock %}
+
+{% block content %}
+<h2>Website Crawler</h2>
+<p>Crawl your website to automatically extract products and build AI knowledge base.</p>
+
+<article>
+    <form id="crawl-form">
+        <div class="grid">
+            <div>
+                <label>Website URL</label>
+                <input type="url" id="crawl-url" required placeholder="https://yourstore.com">
+            </div>
+            <div>
+                <label>Depth</label>
+                <input type="number" id="crawl-depth" value="3" min="1" max="5">
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button type="submit">Start Crawl</button>
+            </div>
+        </div>
+    </form>
+</article>
+
+<h3>Crawl Jobs</h3>
+<div id="jobs-container"></div>
+
+<script>
+const token = localStorage.getItem('token');
+if (!token) window.location.href = '/dashboard/login';
+const tenantId = '{{ tenant_id }}';
+const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+
+document.getElementById('crawl-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = document.getElementById('crawl-url').value;
+    const depth = parseInt(document.getElementById('crawl-depth').value);
+
+    const resp = await fetch(`/api/tenants/${tenantId}/crawl`, {
+        method: 'POST', headers,
+        body: JSON.stringify({url, depth})
+    });
+
+    if (resp.ok) {
+        loadJobs();
+    } else {
+        const err = await resp.json();
+        alert(err.detail || 'Failed to start crawl');
+    }
+});
+
+async function loadJobs() {
+    const resp = await fetch(`/api/tenants/${tenantId}/crawl/jobs`, {headers});
+    const jobs = await resp.json();
+    const container = document.getElementById('jobs-container');
+
+    if (jobs.length === 0) {
+        container.innerHTML = '<p>No crawl jobs yet.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <table>
+            <thead><tr><th>URL</th><th>Status</th><th>Pages</th><th>Products</th><th>Error</th><th>Date</th></tr></thead>
+            <tbody>
+                ${jobs.map(j => `
+                    <tr>
+                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">${j.url}</td>
+                        <td><span class="badge badge-${j.status === 'completed' ? 'delivered' : j.status === 'failed' ? 'cancelled' : 'pending'}">${j.status}</span></td>
+                        <td>${j.pages_found}</td>
+                        <td>${j.products_extracted}</td>
+                        <td style="max-width:200px; overflow:hidden;">${j.error_message || '-'}</td>
+                        <td>${j.created_at.split('T')[0] || j.created_at.split(' ')[0]}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+loadJobs();
+// Auto-refresh every 10 seconds to check job status
+setInterval(loadJobs, 10000);
+</script>
+{% endblock %}
