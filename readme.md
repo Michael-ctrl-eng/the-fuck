@@ -49,7 +49,8 @@ AI Agent: Bhai, ki obostha? 😊
 
 - **Multi-language AI** — Responds in Bangla (বাংলা), Banglish, or English based on the customer's language
 - **Multi-tenant** — Each Facebook page is an isolated tenant with its own products, orders, and conversations
-- **Product Catalog** — Manual entry, CSV bulk upload, or automatic website crawling
+- **Flexible Product Schema** — Products only need name + price. Any extra fields (color, size, brand, RAM, flavor, weight...) are stored as dynamic attributes. Works for clothing, electronics, food, services — anything
+- **Product Catalog** — Manual entry, CSV bulk upload (any CSV format auto-detected), or automatic website crawling
 - **Website Crawler** — Provide a URL, the system crawls with Katana/trafilatura and extracts products using AI
 - **Vectorless RAG** — PageIndex-style knowledge base built from crawled content (no vector DB needed)
 - **Order Collection** — AI collects name, phone (BD format validation), full address (Division/District/Upazila), and payment method
@@ -59,7 +60,7 @@ AI Agent: Bhai, ki obostha? 😊
 - **Notifications** — Email alerts to shop owners on new orders
 - **Dashboard** — Minimalistic web UI for managing products, orders, conversations, and testing the AI
 - **Swagger API** — Full OpenAPI documentation with interactive testing
-- **120 Tests** — Comprehensive unit + integration + system test suite
+- **128 Tests** — Comprehensive unit + integration + system test suite
 
 ---
 
@@ -291,9 +292,10 @@ mama_sales_agent/
 │   │   ├── user.py               # Users table — page owners who log in to the dashboard
 │   │   ├── tenant.py             # Tenants table — each connected Facebook page/business.
 │   │   │                         #   Stores page_access_token, website_url, notification prefs
-│   │   ├── product.py            # Products table — catalog items with name, name_bn (Bangla),
-│   │   │                         #   price, discount_price, category, SKU, stock status, source.
-│   │   │                         #   Unique constraints for deduplication (tenant+source+ref, tenant+sku)
+│   │   ├── product.py            # Products table — only fixed columns are name, price, is_active,
+│   │   │                         #   source. ALL other fields (description, category, color, size,
+│   │   │                         #   brand, RAM, weight, flavor, etc.) stored in flexible JSON
+│   │   │                         #   `attributes` column. Adapts to any business type
 │   │   ├── customer.py           # Customers table — end-users who message via Messenger.
 │   │   │                         #   Identified by FB Page-Scoped ID (PSID). Stores collected
 │   │   │                         #   address info (division, district, upazila)
@@ -454,7 +456,7 @@ mama_sales_agent/
 |-------|---------|
 | `users` | Dashboard users (page owners). Auth via email/password or Facebook |
 | `tenants` | Each connected business/Facebook page. Stores page token, settings |
-| `products` | Product catalog per tenant. Dual names (English + Bangla), pricing in BDT |
+| `products` | Product catalog per tenant. Fixed: name + price. Flexible JSON `attributes` for any other fields |
 | `customers` | End-customers identified by Messenger PSID. Stores collected address info |
 | `conversations` | Chat sessions between customer and AI agent |
 | `messages` | Individual messages within conversations (role: customer/assistant) |
@@ -505,29 +507,79 @@ For local development, use the **Test Chat** widget in the dashboard instead —
 
 ---
 
-## CSV Import Format
+## Flexible Product Format
 
-Upload products in bulk using CSV. Required columns:
+Products only require **name** and **price**. Everything else is stored as flexible attributes — the system adapts to any business type.
 
-| Column | Required | Example |
-|--------|----------|---------|
-| `name` | Yes | Cotton Saree |
-| `price` | Yes | 1500.00 |
-| `name_bn` | No | সুতি শাড়ি |
-| `description` | No | Premium quality cotton |
-| `discount_price` | No | 1200.00 |
-| `category` | No | Clothing |
-| `sku` | No | SAR-001 |
-| `stock_status` | No | in_stock / out_of_stock / limited |
-| `image_url` | No | https://example.com/photo.jpg |
+### API Examples
 
-Example CSV:
+```bash
+# Clothing store
+curl -X POST /api/tenants/{id}/products -d '{
+  "name": "Silk Saree", "price": 5000,
+  "name_bn": "সিল্ক শাড়ি", "color": "red", "material": "silk", "category": "Saree"
+}'
+
+# Electronics store
+curl -X POST /api/tenants/{id}/products -d '{
+  "name": "Samsung A15", "price": 18000,
+  "brand": "Samsung", "RAM": "6GB", "storage": "128GB", "warranty": "1 year"
+}'
+
+# Bakery
+curl -X POST /api/tenants/{id}/products -d '{
+  "name": "Chocolate Cake", "price": 850,
+  "flavor": "dark chocolate", "weight": "1kg", "serves": "8-10"
+}'
+
+# Grocery
+curl -X POST /api/tenants/{id}/products -d '{
+  "name": "Miniket Rice", "price": 350,
+  "weight": "5kg", "origin": "Dinajpur", "organic": true
+}'
+```
+
+The AI agent automatically uses whatever attributes you provide when talking to customers.
+
+### CSV Import (Any Format)
+
+Upload **any CSV format**. The system auto-detects columns:
+
+- **Name column** (required): `name`, `product_name`, `title`, or `item`
+- **Price column** (required): `price`, `cost`, `amount`, `rate`, or `mrp`
+- **Everything else**: stored as product attributes automatically
+
+Example CSVs that all work:
 
 ```csv
-name,name_bn,price,discount_price,category,sku,stock_status
-Cotton Saree,সুতি শাড়ি,1500,1200,Clothing,SAR-001,in_stock
-Silk Punjabi,সিল্ক পাঞ্জাবি,3500,,Clothing,PUN-001,in_stock
-Jute Bag,পাটের ব্যাগ,450,,Accessories,BAG-001,in_stock
+name,price,category,color,material
+Cotton Saree,1500,Clothing,white,cotton
+Silk Punjabi,3500,Clothing,blue,silk
+```
+
+```csv
+product_name,cost,brand,RAM,storage
+Samsung A15,18000,Samsung,6GB,128GB
+iPhone 13,85000,Apple,4GB,128GB
+```
+
+```csv
+item,rate,weight,flavor
+Chocolate Cake,850,1kg,dark chocolate
+Vanilla Pastry,120,150g,vanilla
+```
+
+The system reports which columns it detected:
+
+```json
+{
+  "imported": 3,
+  "detected_columns": {
+    "name_column": "product_name",
+    "price_column": "cost",
+    "attribute_columns": ["brand", "RAM", "storage"]
+  }
+}
 ```
 
 ---

@@ -11,12 +11,16 @@ from app.config import get_settings
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
-# Fallback free models on OpenRouter
+# Fallback free models on OpenRouter (ordered by reliability)
 FALLBACK_MODELS = [
+    "google/gemma-3-27b-it:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-4b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "qwen/qwen3-4b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "openai/gpt-oss-120b:free",
-    "qwen/qwen3-coder:free",
 ]
 
 
@@ -40,7 +44,7 @@ async def chat_completion(
         except Exception as e:
             last_error = e
             logger.warning(f"Model {current_model} failed: {e}, trying next...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(3)
 
     raise RuntimeError(f"All models failed. Last error: {last_error}")
 
@@ -81,7 +85,7 @@ async def _call_openrouter(
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"OpenRouter error {response.status_code}: {response.text}"
+                f"OpenRouter error {response.status_code}: {response.text[:300]}"
             )
 
         data = response.json()
@@ -89,4 +93,8 @@ async def _call_openrouter(
         if not choices:
             raise RuntimeError("No choices in response")
 
-        return choices[0]["message"]["content"]
+        content = choices[0]["message"]["content"]
+        if content is None:
+            raise RuntimeError(f"Model {model} returned null content")
+
+        return content

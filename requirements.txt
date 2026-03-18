@@ -46,5 +46,8 @@ aiosmtplib==3.0.2
 # Fuzzy matching
 python-Levenshtein==0.26.1
 
+# Headless browser for JS-rendered sites
+playwright==1.58.0
+
 # Python 3.9 compatibility
 eval_type_backport==0.3.1

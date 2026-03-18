@@ -43,3 +43,12 @@ app.include_router(api_router)
 from app.api.dashboard import dashboard_router  # noqa: E402
 
 app.include_router(dashboard_router)
+
+
+# Redirect root to dashboard
+from fastapi.responses import RedirectResponse  # noqa: E402
+
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    return RedirectResponse(url="/dashboard")
