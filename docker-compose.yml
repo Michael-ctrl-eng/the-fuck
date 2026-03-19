@@ -31,6 +31,10 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://mama:mama_secret@db:5432/mama_sales
+      - DATABASE_URL_SYNC=postgresql://mama:mama_secret@db:5432/mama_sales
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
     depends_on:
@@ -43,6 +47,10 @@ services:
   celery_worker:
     build: .
     env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://mama:mama_secret@db:5432/mama_sales
+      - DATABASE_URL_SYNC=postgresql://mama:mama_secret@db:5432/mama_sales
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
     depends_on:

@@ -21,5 +21,6 @@ celery_app.conf.update(
     worker_max_tasks_per_child=50,
 )
 
-# Auto-discover tasks
-celery_app.autodiscover_tasks(["app.tasks"])
+# Explicitly import tasks so Celery registers them at startup
+import app.tasks.crawl_tasks  # noqa: F401, E402
+import app.tasks.notification_tasks  # noqa: F401, E402

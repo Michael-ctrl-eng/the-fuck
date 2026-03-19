@@ -128,8 +128,9 @@ Website content:
 
         products = json.loads(json_match.group())
         count = 0
+        base_url = pages[0].get("url", "") if pages else ""
 
-        for p in products:
+        for i, p in enumerate(products):
             try:
                 price = Decimal(str(p.get("price", 0)))
                 if price <= 0:
@@ -140,18 +141,24 @@ Website content:
                 # Everything else becomes attributes
                 attributes = {k: v for k, v in p.items() if v is not None}
 
+                # Unique source_ref per product to avoid constraint violations
+                source_ref = f"{base_url}#product-{i}"
+
                 await create_product(
                     db,
                     tenant_id,
                     name=name,
                     price=price,
                     source="crawl",
-                    source_ref=pages[0].get("url", ""),
+                    source_ref=source_ref,
                     attributes=attributes if attributes else None,
                 )
+                await db.commit()
                 count += 1
-            except ValueError:
-                pass  # Duplicate, skip
+                logger.info(f"Saved product: {name} ৳{price}")
+            except Exception as e:
+                await db.rollback()
+                logger.warning(f"Skipped product '{p.get('name', '?')}': {e}")
 
         return count
 

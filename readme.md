@@ -51,7 +51,7 @@ AI Agent: Bhai, ki obostha? 😊
 - **Multi-tenant** — Each Facebook page is an isolated tenant with its own products, orders, and conversations
 - **Flexible Product Schema** — Products only need name + price. Any extra fields (color, size, brand, RAM, flavor, weight...) are stored as dynamic attributes. Works for clothing, electronics, food, services — anything
 - **Product Catalog** — Manual entry, CSV bulk upload (any CSV format auto-detected), or automatic website crawling
-- **Website Crawler** — Provide a URL, the system crawls with Katana/trafilatura and extracts products using AI
+- **Website Crawler** — Provide a URL, the system crawls with Playwright (bypasses Cloudflare), Katana, and trafilatura — then extracts products using AI
 - **Vectorless RAG** — PageIndex-style knowledge base built from crawled content (no vector DB needed)
 - **Order Collection** — AI collects name, phone (BD format validation), full address (Division/District/Upazila), and payment method
 - **Order Management** — Full lifecycle: Pending → Confirmed → Shipped → Delivered
@@ -71,9 +71,9 @@ AI Agent: Bhai, ki obostha? 😊
 | Backend | Python 3.9+, FastAPI |
 | Database | PostgreSQL 16 (with pg_trgm for fuzzy matching) |
 | Cache / Queue | Redis 7, Celery |
-| LLM | OpenRouter (free models — Nemotron, Qwen, GPT-OSS) |
+| LLM | OpenRouter (free models — Gemma, Llama, Mistral with auto-fallback) |
 | Knowledge Base | PageIndex-style vectorless RAG (no vector DB) |
-| Web Crawler | Katana (ProjectDiscovery) + trafilatura fallback |
+| Web Crawler | Playwright (Cloudflare bypass) + Katana + trafilatura |
 | Dashboard | Jinja2 templates + Pico CSS |
 | Auth | JWT (python-jose) + bcrypt |
 | Testing | pytest + pytest-asyncio + aiosqlite |
@@ -243,8 +243,20 @@ Customer (Messenger/Test Chat)
 ### Data Pipeline
 
 ```
-Website URL ──▶ Katana Crawler ──▶ trafilatura (HTML→text) ──▶ LLM Product Extraction ──▶ Products DB
-                                                             ──▶ PageIndex Tree (JSON)  ──▶ Knowledge Base
+Website URL ──▶ Quick Test (httpx)
+                    │
+            ┌───────┴───────┐
+            ▼               ▼
+       Works fine      Cloudflare / JS
+            │               │
+            ▼               ▼
+     Katana + httpx    Playwright (headless Chrome)
+     + trafilatura     renders pages, extracts links
+            │               │
+            └───────┬───────┘
+                    ▼
+          LLM Product Extraction ──▶ Products DB
+          PageIndex Tree (JSON)  ──▶ Knowledge Base
 ```
 
 ---
@@ -263,8 +275,8 @@ mama_sales_agent/
 │   ├── ai/                       # AI / LLM layer
 │   │   ├── agent.py              # Core sales agent orchestrator — processes messages, calls LLM,
 │   │   │                         #   manages conversations, detects orders, creates them in DB
-│   │   ├── llm_client.py         # OpenRouter API client with automatic model fallback and
-│   │   │                         #   rate-limit handling (retries with exponential backoff)
+│   │   ├── llm_client.py         # OpenRouter API client with automatic model fallback
+│   │   │                         #   (8 free models), null-content detection, rate-limit handling
 │   │   ├── prompts.py            # System prompt templates — sales persona, BD-specific knowledge,
 │   │   │                         #   order collection instructions, product catalog formatting
 │   │   ├── order_collector.py    # Extracts structured order JSON from AI responses, validates
@@ -334,9 +346,9 @@ mama_sales_agent/
 │   │
 │   ├── tasks/                    # Celery async background tasks
 │   │   ├── celery_app.py         # Celery instance configuration (broker: Redis, timezone: Asia/Dhaka)
-│   │   ├── crawl_tasks.py        # Full crawl pipeline: Katana/trafilatura crawl → LLM product
-│   │   │                         #   extraction → PageIndex knowledge base building. Updates
-│   │   │                         #   crawl_job status at each stage
+│   │   ├── crawl_tasks.py        # Full crawl pipeline: Playwright/Katana crawl → LLM product
+│   │   │                         #   extraction → knowledge base building. Per-product commits
+│   │   │                         #   with rollback on duplicates. Updates job status at each stage
 │   │   └── notification_tasks.py # Async order notification dispatch (decoupled from request cycle)
 │   │
 │   └── utils/                    # Shared utility modules
@@ -407,7 +419,7 @@ mama_sales_agent/
 │
 ├── alembic.ini                   # Alembic configuration
 ├── docker-compose.yml            # Docker services: PostgreSQL 16, Redis 7, app, celery worker
-├── Dockerfile                    # Python 3.12 slim image with all dependencies
+├── Dockerfile                    # Python 3.12 slim image with Playwright Chromium for crawling
 ├── init.sql                      # PostgreSQL init script — enables pg_trgm extension
 ├── requirements.txt              # Python dependencies (pinned versions)
 ├── pytest.ini                    # pytest configuration (asyncio_mode = auto)
@@ -483,7 +495,7 @@ All configuration is via environment variables (`.env` file). See [`.env.example
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENROUTER_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | Primary LLM model |
+| `OPENROUTER_MODEL` | `google/gemma-3-27b-it:free` | Primary LLM model (auto-falls back to other free models) |
 | `JWT_SECRET_KEY` | `change-me...` | Secret for JWT signing (change in production!) |
 | `FB_APP_ID` | — | Facebook App ID (for Messenger integration) |
 | `FB_APP_SECRET` | — | Facebook App Secret |
