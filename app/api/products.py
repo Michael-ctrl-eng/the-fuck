@@ -99,6 +99,51 @@ async def upload_csv(
     return result
 
 
+@router.post("/import-url", response_model=ProductResponse, status_code=201)
+async def import_from_url(
+    req: dict,
+    tenant=Depends(get_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import a product by pasting its URL.
+
+    The system crawls the page and extracts product details automatically.
+    Tries JSON-LD → OG tags → HTML regex → LLM fallback.
+    """
+    url = req.get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    from app.knowledge.product_extractor import extract_product_from_url
+    from decimal import Decimal
+
+    extracted = await extract_product_from_url(url)
+    if not extracted or not extracted.get("name") or not extracted.get("price"):
+        raise HTTPException(
+            status_code=422,
+            detail="Could not extract product from this URL. The page may be JS-rendered or have no product data.",
+        )
+
+    name = extracted.pop("name")
+    price = Decimal(str(extracted.pop("price")))
+
+    # Everything else becomes attributes
+    attributes = {k: v for k, v in extracted.items() if v}
+
+    try:
+        product = await product_service.create_product(
+            db, tenant.id,
+            name=name,
+            price=price,
+            source="url",
+            source_ref=url,
+            attributes=attributes,
+        )
+        return _product_to_response(product)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: uuid.UUID,

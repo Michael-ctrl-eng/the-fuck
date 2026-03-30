@@ -39,7 +39,7 @@ class Order(Base):
     )
 
     tenant = relationship("Tenant", back_populates="orders")
-    customer = relationship("Customer")
+    customer = relationship("Customer", back_populates="orders")
     conversation = relationship("Conversation", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 

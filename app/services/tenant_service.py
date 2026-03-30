@@ -83,12 +83,89 @@ async def get_tenant_stats(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
         )
     )
 
+    # Today / month stats
+    from datetime import datetime, timedelta
+    from app.models.customer import Customer
+    from app.models.order import OrderItem
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = today_start.replace(day=1)
+
+    today_orders = await db.scalar(
+        select(func.count(Order.id)).where(
+            Order.tenant_id == tenant_id,
+            Order.created_at >= today_start,
+        )
+    ) or 0
+
+    today_revenue = await db.scalar(
+        select(func.coalesce(func.sum(Order.total), 0)).where(
+            Order.tenant_id == tenant_id,
+            Order.created_at >= today_start,
+            Order.status.in_(["confirmed", "shipped", "delivered"]),
+        )
+    ) or 0
+
+    month_revenue = await db.scalar(
+        select(func.coalesce(func.sum(Order.total), 0)).where(
+            Order.tenant_id == tenant_id,
+            Order.created_at >= month_start,
+            Order.status.in_(["confirmed", "shipped", "delivered"]),
+        )
+    ) or 0
+
+    customers_count = await db.scalar(
+        select(func.count(Customer.id)).where(Customer.tenant_id == tenant_id)
+    ) or 0
+
+    # Top selling products
+    top_result = await db.execute(
+        select(
+            OrderItem.product_name,
+            func.sum(OrderItem.quantity).label("total_qty"),
+            func.sum(OrderItem.total_price).label("total_revenue"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(Order.tenant_id == tenant_id)
+        .group_by(OrderItem.product_name)
+        .order_by(func.sum(OrderItem.quantity).desc())
+        .limit(5)
+    )
+    top_products = [
+        {"name": row.product_name, "qty": int(row.total_qty), "revenue": float(row.total_revenue)}
+        for row in top_result.all()
+    ]
+
+    # Recent orders
+    recent_result = await db.execute(
+        select(Order)
+        .where(Order.tenant_id == tenant_id)
+        .order_by(Order.created_at.desc())
+        .limit(5)
+    )
+    recent_orders = [
+        {
+            "order_number": o.order_number,
+            "customer_name": o.customer_name,
+            "total": float(o.total),
+            "status": o.status,
+            "created_at": str(o.created_at),
+        }
+        for o in recent_result.scalars().all()
+    ]
+
     return {
         "products_count": products_count or 0,
         "orders_count": orders_count or 0,
         "pending_orders": pending_orders or 0,
         "active_conversations": active_conversations or 0,
         "total_revenue": float(total_revenue or 0),
+        "today_orders": today_orders,
+        "today_revenue": float(today_revenue),
+        "month_revenue": float(month_revenue),
+        "customers_count": customers_count,
+        "top_products": top_products,
+        "recent_orders": recent_orders,
         "total_tokens": int(total_tokens_used or 0),
         "chat_tokens": int(chat_tokens or 0),
         "crawl_tokens": int(crawl_tokens or 0),

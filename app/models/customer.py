@@ -31,3 +31,4 @@ class Customer(Base):
 
     tenant = relationship("Tenant", back_populates="customers")
     conversations = relationship("Conversation", back_populates="customer")
+    orders = relationship("Order", back_populates="customer")

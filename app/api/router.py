@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api import auth, tenants, products, orders, conversations, crawl, webhook, facebook, test_chat
+from app.api import auth, tenants, products, orders, conversations, customers, address, crawl, webhook, facebook, test_chat
 
 api_router = APIRouter()
 
@@ -9,6 +9,8 @@ api_router.include_router(tenants.router)
 api_router.include_router(products.router)
 api_router.include_router(orders.router)
 api_router.include_router(conversations.router)
+api_router.include_router(customers.router)
+api_router.include_router(address.router)
 api_router.include_router(crawl.router)
 api_router.include_router(webhook.router)
 api_router.include_router(facebook.router)

@@ -91,39 +91,66 @@ function renderTenantCard(t, s) {
             </header>
 
             <div class="stats-grid">
-                <div class="stat-card"><h2>${s.products_count || 0}</h2><p>Products</p></div>
-                <div class="stat-card"><h2>${s.orders_count || 0}</h2><p>Orders</p></div>
+                <div class="stat-card"><h2>${s.today_orders || 0}</h2><p>Today's Orders</p></div>
+                <div class="stat-card"><h2>৳${(s.today_revenue || 0).toLocaleString()}</h2><p>Today's Revenue</p></div>
+                <div class="stat-card"><h2>৳${(s.month_revenue || 0).toLocaleString()}</h2><p>This Month</p></div>
                 <div class="stat-card"><h2>${s.pending_orders || 0}</h2><p>Pending</p></div>
-                <div class="stat-card"><h2>${s.active_conversations || 0}</h2><p>Active Chats</p></div>
-                <div class="stat-card"><h2>৳${(s.total_revenue || 0).toLocaleString()}</h2><p>Revenue</p></div>
+                <div class="stat-card"><h2>${s.customers_count || 0}</h2><p>Customers</p></div>
+                <div class="stat-card"><h2>${s.products_count || 0}</h2><p>Products</p></div>
+                <div class="stat-card"><h2>${s.orders_count || 0}</h2><p>Total Orders</p></div>
+                <div class="stat-card"><h2>৳${(s.total_revenue || 0).toLocaleString()}</h2><p>Total Revenue</p></div>
             </div>
+
+            ${(s.recent_orders && s.recent_orders.length) ? `
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <h4 style="margin-bottom:0.5rem;">Recent Orders</h4>
+                    <table style="font-size:0.85rem;">
+                        <tbody>
+                            ${s.recent_orders.map(o => `
+                                <tr>
+                                    <td>${o.order_number}</td>
+                                    <td>${o.customer_name}</td>
+                                    <td>৳${o.total}</td>
+                                    <td><span class="badge badge-${o.status}">${o.status}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${(s.top_products && s.top_products.length) ? `
+                <div>
+                    <h4 style="margin-bottom:0.5rem;">Top Products</h4>
+                    <table style="font-size:0.85rem;">
+                        <tbody>
+                            ${s.top_products.map(p => `
+                                <tr>
+                                    <td>${p.name}</td>
+                                    <td>${p.qty} sold</td>
+                                    <td>৳${p.revenue.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
 
             <!-- Token Usage -->
-            <div class="token-bar">
-                <div class="token-item">
-                    <span>Total Tokens:</span>
-                    <span class="token-value">${(s.total_tokens || 0).toLocaleString()}</span>
-                </div>
-                <div class="token-item">
-                    <span>Chat:</span>
-                    <span class="token-value">${(s.chat_tokens || 0).toLocaleString()}</span>
-                </div>
-                <div class="token-item">
-                    <span>Crawl/Training:</span>
-                    <span class="token-value">${(s.crawl_tokens || 0).toLocaleString()}</span>
-                </div>
-                <div class="token-item">
-                    <span>LLM Calls:</span>
-                    <span class="token-value">${s.llm_calls || 0}</span>
-                </div>
+            <div class="token-bar" style="margin-top:1rem;">
+                <div class="token-item"><span>Tokens:</span> <span class="token-value">${(s.total_tokens || 0).toLocaleString()}</span></div>
+                <div class="token-item"><span>Chat:</span> <span class="token-value">${(s.chat_tokens || 0).toLocaleString()}</span></div>
+                <div class="token-item"><span>Crawl:</span> <span class="token-value">${(s.crawl_tokens || 0).toLocaleString()}</span></div>
+                <div class="token-item"><span>LLM Calls:</span> <span class="token-value">${s.llm_calls || 0}</span></div>
             </div>
 
-            <div class="grid">
+            <div class="grid" style="margin-top:1rem;">
                 <a href="/dashboard/${t.id}/chat" role="button">Test Chat</a>
                 <a href="/dashboard/${t.id}/products" role="button" class="secondary">Products</a>
                 <a href="/dashboard/${t.id}/orders" role="button" class="secondary">Orders</a>
-                <a href="/dashboard/${t.id}/crawl" role="button" class="outline">Crawl Website</a>
-                <a href="/dashboard/${t.id}/conversations" role="button" class="outline">Conversations</a>
+                <a href="/dashboard/${t.id}/customers" role="button" class="secondary">Customers</a>
+                <a href="/dashboard/${t.id}/crawl" role="button" class="outline">Crawl</a>
                 <a href="/dashboard/${t.id}/settings" role="button" class="outline">Settings</a>
             </div>
         </article>

@@ -45,9 +45,33 @@ class OrderListResponse(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: str
+    notes: str | None = None
 
     model_config = {
         "json_schema_extra": {
             "examples": [{"status": "confirmed"}]
         }
     }
+
+
+class ManualOrderItemCreate(BaseModel):
+    product_name: str
+    quantity: int = 1
+    unit_price: Decimal
+
+
+class ManualOrderCreate(BaseModel):
+    customer_name: str
+    customer_phone: str
+    division: str
+    district: str
+    upazila: str | None = None
+    address_detail: str
+    payment_method: str = "cod"
+    delivery_charge: Decimal = Decimal("0")
+    notes: str | None = None
+    items: list[ManualOrderItemCreate]
+
+
+class OrderNotesUpdate(BaseModel):
+    notes: str

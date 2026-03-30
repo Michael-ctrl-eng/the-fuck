@@ -37,6 +37,13 @@ async def orders_page(request: Request, tenant_id: str):
     )
 
 
+@dashboard_router.get("/{tenant_id}/customers")
+async def customers_page(request: Request, tenant_id: str):
+    return templates.TemplateResponse(
+        "customers.html", {"request": request, "tenant_id": tenant_id}
+    )
+
+
 @dashboard_router.get("/{tenant_id}/conversations")
 async def conversations_page(request: Request, tenant_id: str):
     return templates.TemplateResponse(

@@ -6,10 +6,28 @@
     <h2>Products</h2>
     <div style="display:flex; gap:0.5rem;">
         <button id="add-btn" class="outline" style="padding:0.3rem 0.8rem;">+ Add Product</button>
+        <button id="url-btn" style="padding:0.3rem 0.8rem;">Import from URL</button>
         <button id="csv-btn" class="secondary" style="padding:0.3rem 0.8rem;">Upload CSV</button>
         <a href="/dashboard/{{ tenant_id }}/crawl" role="button" class="outline" style="padding:0.3rem 0.8rem;">Crawl Website</a>
     </div>
 </div>
+
+<!-- Import from URL Modal -->
+<dialog id="url-modal">
+    <article style="min-width: 500px;">
+        <header><h3>Import Product from URL</h3></header>
+        <p><small>Paste any product page link. The system will automatically extract the product name, price, description, stock status, and image.</small></p>
+        <form id="url-form">
+            <label>Product Page URL *</label>
+            <input type="url" id="import-url" required placeholder="https://example.com/products/my-product">
+            <div id="url-status" style="display:none; margin-bottom:1rem;"></div>
+            <footer>
+                <button type="button" class="secondary" onclick="document.getElementById('url-modal').close()">Cancel</button>
+                <button type="submit" id="url-submit-btn">Extract & Import</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
 
 <!-- Add Product Modal — flexible fields -->
 <dialog id="add-modal">
@@ -66,6 +84,50 @@
     </article>
 </dialog>
 
+<!-- Edit Product Modal -->
+<dialog id="edit-modal">
+    <article style="min-width: 550px;">
+        <header><h3>Edit Product</h3></header>
+        <form id="edit-form">
+            <input type="hidden" id="edit-id">
+            <div class="grid">
+                <div>
+                    <label>Product Name *</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div>
+                    <label>Price (BDT) *</label>
+                    <input type="number" id="edit-price" required step="0.01">
+                </div>
+            </div>
+            <div class="grid">
+                <div>
+                    <label>Stock Status</label>
+                    <select id="edit-stock">
+                        <option value="in_stock">In Stock</option>
+                        <option value="out_of_stock">Out of Stock</option>
+                        <option value="limited">Limited Stock</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Category</label>
+                    <input type="text" id="edit-category" placeholder="e.g. Honey, Saree">
+                </div>
+            </div>
+            <label>Description</label>
+            <textarea id="edit-description" rows="2"></textarea>
+
+            <div id="edit-attrs"></div>
+            <button type="button" class="outline" style="margin-bottom:1rem;" onclick="addEditField()">+ Add Attribute</button>
+
+            <footer>
+                <button type="button" class="secondary" onclick="document.getElementById('edit-modal').close()">Cancel</button>
+                <button type="submit">Update Product</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+
 <input type="text" id="search-input" placeholder="Search products..." style="margin-bottom: 1rem;">
 <div id="products-table"></div>
 
@@ -74,7 +136,45 @@ const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 
 document.getElementById('add-btn').onclick = () => document.getElementById('add-modal').showModal();
+document.getElementById('url-btn').onclick = () => document.getElementById('url-modal').showModal();
 document.getElementById('csv-btn').onclick = () => document.getElementById('csv-modal').showModal();
+
+// Import from URL
+document.getElementById('url-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = document.getElementById('import-url').value.trim();
+    const btn = document.getElementById('url-submit-btn');
+    const status = document.getElementById('url-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Extracting...';
+    status.style.display = 'block';
+    status.innerHTML = '<small aria-busy="true">Crawling page and extracting product data...</small>';
+
+    try {
+        const resp = await fetch(`/api/tenants/${tenantId}/products/import-url`, {
+            method: 'POST', headers,
+            body: JSON.stringify({url})
+        });
+        const data = await resp.json();
+
+        if (resp.ok) {
+            status.innerHTML = `<div class="flash-success">
+                <strong>Imported:</strong> ${data.name} — ৳${data.price}
+                ${data.attributes?.stock_status ? `[${data.attributes.stock_status}]` : ''}
+            </div>`;
+            loadProducts();
+            setTimeout(() => document.getElementById('url-modal').close(), 2000);
+        } else {
+            status.innerHTML = `<div class="flash-error">${data.detail || 'Failed to extract product'}</div>`;
+        }
+    } catch(e) {
+        status.innerHTML = '<div class="flash-error">Network error</div>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Extract & Import';
+});
 
 let searchTimeout;
 document.getElementById('search-input').addEventListener('input', (e) => {
@@ -140,7 +240,11 @@ async function loadProducts(search = '') {
                             <td>৳${p.price}${discount}</td>
                             <td>${displayAttrs || '-'}</td>
                             <td>${p.source}</td>
-                            <td><button class="outline" style="padding:0.2rem 0.5rem;" onclick="deleteProduct('${p.id}')">Delete</button></td>
+                            <td style="white-space:nowrap;">
+                                <button class="outline" style="padding:0.2rem 0.5rem;" onclick="toggleStock('${p.id}', '${stock}')">${stock === 'in_stock' ? '📦' : '❌'}</button>
+                                <button class="outline" style="padding:0.2rem 0.5rem;" onclick="editProduct('${p.id}')">Edit</button>
+                                <button class="outline secondary" style="padding:0.2rem 0.5rem;" onclick="deleteProduct('${p.id}')">Del</button>
+                            </td>
                         </tr>
                     `;
                 }).join('')}
@@ -204,6 +308,91 @@ document.getElementById('csv-form').addEventListener('submit', async (e) => {
         ${data.errors?.length ? '<details><summary>Errors</summary><pre>' + data.errors.join('\n') + '</pre></details>' : ''}
     `;
     loadProducts();
+});
+
+async function toggleStock(id, currentStock) {
+    const newStock = currentStock === 'in_stock' ? 'out_of_stock' : 'in_stock';
+    await fetch(`/api/tenants/${tenantId}/products/${id}`, {
+        method: 'PATCH', headers, body: JSON.stringify({stock_status: newStock})
+    });
+    loadProducts();
+}
+
+async function editProduct(id) {
+    const resp = await fetch(`/api/tenants/${tenantId}/products/${id}`, {headers});
+    const p = await resp.json();
+    const attrs = p.attributes || {};
+
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-name').value = p.name;
+    document.getElementById('edit-price').value = p.price;
+    document.getElementById('edit-stock').value = attrs.stock_status || 'in_stock';
+    document.getElementById('edit-category').value = attrs.category || '';
+    document.getElementById('edit-description').value = attrs.description || '';
+
+    // Render extra attributes
+    const skip = new Set(['stock_status','category','description','name_bn','discount_price','image_url','url','sku','brand']);
+    const container = document.getElementById('edit-attrs');
+    container.innerHTML = '';
+    Object.entries(attrs).forEach(([k, v]) => {
+        if (!skip.has(k) && v !== null && v !== '') {
+            const div = document.createElement('div');
+            div.className = 'grid';
+            div.style.marginBottom = '0.5rem';
+            div.innerHTML = `
+                <input type="text" value="${k}" class="edit-attr-key">
+                <input type="text" value="${v}" class="edit-attr-val">
+                <button type="button" class="outline secondary" style="padding:0.3rem 0.5rem; width:auto;" onclick="this.parentElement.remove()">x</button>
+            `;
+            container.appendChild(div);
+        }
+    });
+
+    document.getElementById('edit-modal').showModal();
+}
+
+function addEditField() {
+    const container = document.getElementById('edit-attrs');
+    const div = document.createElement('div');
+    div.className = 'grid';
+    div.style.marginBottom = '0.5rem';
+    div.innerHTML = `
+        <input type="text" placeholder="Attribute name" class="edit-attr-key">
+        <input type="text" placeholder="Value" class="edit-attr-val">
+        <button type="button" class="outline secondary" style="padding:0.3rem 0.5rem; width:auto;" onclick="this.parentElement.remove()">x</button>
+    `;
+    container.appendChild(div);
+}
+
+document.getElementById('edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-id').value;
+    const body = {
+        name: document.getElementById('edit-name').value,
+        price: document.getElementById('edit-price').value,
+        stock_status: document.getElementById('edit-stock').value,
+        category: document.getElementById('edit-category').value || undefined,
+        description: document.getElementById('edit-description').value || undefined,
+    };
+    // Collect extra attributes
+    const keys = document.querySelectorAll('.edit-attr-key');
+    const vals = document.querySelectorAll('.edit-attr-val');
+    keys.forEach((keyEl, i) => {
+        const k = keyEl.value.trim();
+        const v = vals[i].value.trim();
+        if (k && v) body[k] = v;
+    });
+
+    const resp = await fetch(`/api/tenants/${tenantId}/products/${id}`, {
+        method: 'PATCH', headers, body: JSON.stringify(body)
+    });
+    if (resp.ok) {
+        document.getElementById('edit-modal').close();
+        loadProducts();
+    } else {
+        const err = await resp.json();
+        alert(err.detail || 'Failed to update');
+    }
 });
 
 async function deleteProduct(id) {

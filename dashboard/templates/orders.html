@@ -1,8 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Orders - Mama Sales Agent{% endblock %}
 
+{% block extra_head %}
+<style>
+    @media print {
+        .top-nav, footer, .section-header, #status-filter, .no-print { display: none !important; }
+        dialog { position: static !important; border: none !important; }
+        dialog article { box-shadow: none !important; min-width: auto !important; }
+    }
+    .order-items-list { margin-top: 0.5rem; }
+    .order-items-list .item-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .order-items-list .item-row input, .order-items-list .item-row select { margin: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Orders</h2>
+<div class="section-header">
+    <h2>Orders</h2>
+    <div style="display:flex; gap:0.5rem;">
+        <button onclick="document.getElementById('create-modal').showModal()" style="padding:0.3rem 0.8rem;">+ New Order</button>
+        <button class="outline" style="padding:0.3rem 0.8rem;" onclick="exportCSV()">Export CSV</button>
+    </div>
+</div>
 
 <div style="margin-bottom: 1rem;">
     <select id="status-filter" style="width: auto; display: inline-block;">
@@ -17,13 +36,92 @@
 
 <div id="orders-container"></div>
 
+<!-- Create Order Modal -->
+<dialog id="create-modal">
+    <article style="min-width: 650px; max-height: 85vh; overflow-y: auto;">
+        <header><h3>Create Order</h3></header>
+        <form id="create-order-form">
+            <h4>Customer</h4>
+            <div class="grid">
+                <div><label>Name *</label><input type="text" id="co-name" required></div>
+                <div><label>Phone *</label><input type="text" id="co-phone" required placeholder="01XXXXXXXXX"></div>
+            </div>
+            <div class="grid">
+                <div>
+                    <label>Division *</label>
+                    <select id="co-division" required><option value="">Select</option></select>
+                </div>
+                <div>
+                    <label>District *</label>
+                    <select id="co-district" required><option value="">Select</option></select>
+                </div>
+                <div>
+                    <label>Upazila</label>
+                    <select id="co-upazila"><option value="">Select</option></select>
+                </div>
+            </div>
+            <label>Full Address *</label>
+            <input type="text" id="co-address" required placeholder="House, Road, Area">
+
+            <h4>Items</h4>
+            <div id="order-items" class="order-items-list"></div>
+            <button type="button" class="outline" style="margin-bottom:1rem;" onclick="addOrderItem()">+ Add Item</button>
+
+            <div class="grid">
+                <div>
+                    <label>Delivery Charge (৳)</label>
+                    <input type="number" id="co-delivery" value="80" step="1">
+                </div>
+                <div>
+                    <label>Payment</label>
+                    <select id="co-payment">
+                        <option value="cod">Cash on Delivery</option>
+                        <option value="bkash">bKash</option>
+                        <option value="nagad">Nagad</option>
+                        <option value="bank">Bank Transfer</option>
+                    </select>
+                </div>
+            </div>
+            <label>Notes</label>
+            <textarea id="co-notes" rows="2" placeholder="Internal notes (optional)"></textarea>
+
+            <footer>
+                <button type="button" class="secondary" onclick="document.getElementById('create-modal').close()">Cancel</button>
+                <button type="submit">Create Order</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+
 <!-- Order Detail Modal -->
 <dialog id="order-modal">
-    <article style="min-width: 600px;">
-        <header><h3 id="order-title"></h3></header>
+    <article style="min-width: 600px; max-height: 85vh; overflow-y: auto;">
+        <header>
+            <div class="section-header">
+                <h3 id="order-title"></h3>
+                <div>
+                    <button class="outline" style="padding:0.2rem 0.6rem;" onclick="window.print()">Print</button>
+                    <button class="outline secondary" style="padding:0.2rem 0.6rem;" onclick="document.getElementById('order-modal').close()">Close</button>
+                </div>
+            </div>
+        </header>
         <div id="order-detail"></div>
+        <h4>Notes</h4>
+        <textarea id="order-notes" rows="2" style="margin-bottom:0.5rem;"></textarea>
+        <button class="outline" style="padding:0.2rem 0.6rem;" onclick="saveNotes()">Save Notes</button>
+    </article>
+</dialog>
+
+<!-- Cancel Dialog -->
+<dialog id="cancel-modal">
+    <article style="min-width: 400px;">
+        <header><h3>Cancel Order</h3></header>
+        <input type="hidden" id="cancel-order-id">
+        <label>Reason for cancellation</label>
+        <textarea id="cancel-reason" rows="2" required placeholder="e.g. Customer changed mind, Out of stock"></textarea>
         <footer>
-            <button class="secondary" onclick="document.getElementById('order-modal').close()">Close</button>
+            <button class="secondary" onclick="document.getElementById('cancel-modal').close()">Back</button>
+            <button style="background:#dc3545;" onclick="confirmCancel()">Cancel Order</button>
         </footer>
     </article>
 </dialog>
@@ -31,47 +129,146 @@
 <script>
 const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
+let allOrders = [];
+let allProducts = [];
+let currentOrderId = null;
 
 document.getElementById('status-filter').addEventListener('change', loadOrders);
+
+// Load BD address cascading
+async function loadDivisions() {
+    const resp = await fetch('/api/bd-address/divisions');
+    const divs = await resp.json();
+    const sel = document.getElementById('co-division');
+    sel.innerHTML = '<option value="">Select Division</option>' + divs.map(d => `<option>${d}</option>`).join('');
+}
+document.getElementById('co-division').addEventListener('change', async () => {
+    const div = document.getElementById('co-division').value;
+    if (!div) return;
+    const resp = await fetch(`/api/bd-address/districts?division=${div}`);
+    const dists = await resp.json();
+    document.getElementById('co-district').innerHTML = '<option value="">Select District</option>' + dists.map(d => `<option>${d}</option>`).join('');
+    document.getElementById('co-upazila').innerHTML = '<option value="">Select</option>';
+});
+document.getElementById('co-district').addEventListener('change', async () => {
+    const div = document.getElementById('co-division').value;
+    const dist = document.getElementById('co-district').value;
+    if (!div || !dist) return;
+    const resp = await fetch(`/api/bd-address/upazilas?division=${div}&district=${dist}`);
+    const ups = await resp.json();
+    document.getElementById('co-upazila').innerHTML = '<option value="">Select</option>' + ups.map(u => `<option>${u}</option>`).join('');
+});
+
+// Load products for item selector
+async function loadProductsForSelect() {
+    const resp = await fetch(`/api/tenants/${tenantId}/products?page_size=200`, {headers});
+    const data = await resp.json();
+    allProducts = data.products;
+}
+
+function addOrderItem() {
+    const container = document.getElementById('order-items');
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+        <select class="oi-product" style="flex:2;" onchange="onProductSelect(this)">
+            <option value="">Select product</option>
+            ${allProducts.map(p => `<option value="${p.name}" data-price="${p.price}">${p.name} (৳${p.price})</option>`).join('')}
+            <option value="__custom">Custom item...</option>
+        </select>
+        <input type="text" class="oi-name" placeholder="Product name" style="flex:2; display:none;">
+        <input type="number" class="oi-qty" value="1" min="1" style="flex:0.5;" placeholder="Qty">
+        <input type="number" class="oi-price" step="0.01" style="flex:1;" placeholder="Price">
+        <button type="button" class="outline secondary" style="padding:0.3rem; width:auto;" onclick="this.parentElement.remove()">x</button>
+    `;
+    container.appendChild(div);
+}
+
+function onProductSelect(sel) {
+    const row = sel.parentElement;
+    const nameInput = row.querySelector('.oi-name');
+    const priceInput = row.querySelector('.oi-price');
+    if (sel.value === '__custom') {
+        nameInput.style.display = '';
+        nameInput.required = true;
+        priceInput.value = '';
+    } else {
+        nameInput.style.display = 'none';
+        nameInput.required = false;
+        const opt = sel.selectedOptions[0];
+        priceInput.value = opt?.dataset.price || '';
+    }
+}
+
+document.getElementById('create-order-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const items = [];
+    document.querySelectorAll('.item-row').forEach(row => {
+        const sel = row.querySelector('.oi-product');
+        const name = sel.value === '__custom' ? row.querySelector('.oi-name').value : sel.value;
+        const qty = parseInt(row.querySelector('.oi-qty').value) || 1;
+        const price = parseFloat(row.querySelector('.oi-price').value) || 0;
+        if (name && price > 0) items.push({product_name: name, quantity: qty, unit_price: price});
+    });
+    if (items.length === 0) { alert('Add at least one item'); return; }
+
+    const body = {
+        customer_name: document.getElementById('co-name').value,
+        customer_phone: document.getElementById('co-phone').value,
+        division: document.getElementById('co-division').value,
+        district: document.getElementById('co-district').value,
+        upazila: document.getElementById('co-upazila').value || null,
+        address_detail: document.getElementById('co-address').value,
+        payment_method: document.getElementById('co-payment').value,
+        delivery_charge: parseFloat(document.getElementById('co-delivery').value) || 0,
+        notes: document.getElementById('co-notes').value || null,
+        items,
+    };
+
+    const resp = await fetch(`/api/tenants/${tenantId}/orders`, {method: 'POST', headers, body: JSON.stringify(body)});
+    if (resp.ok) {
+        document.getElementById('create-modal').close();
+        document.getElementById('create-order-form').reset();
+        document.getElementById('order-items').innerHTML = '';
+        loadOrders();
+    } else {
+        const err = await resp.json();
+        alert(err.detail || 'Failed to create order');
+    }
+});
 
 async function loadOrders() {
     const status = document.getElementById('status-filter').value;
     const url = `/api/tenants/${tenantId}/orders${status ? `?status=${status}` : ''}`;
     const resp = await fetch(url, {headers});
     const data = await resp.json();
+    allOrders = data.orders;
     const container = document.getElementById('orders-container');
 
     if (data.orders.length === 0) {
-        container.innerHTML = '<p>No orders yet.</p>';
+        container.innerHTML = '<article><p>No orders yet.</p></article>';
         return;
     }
 
     container.innerHTML = `
         <table>
             <thead>
-                <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Phone</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
+                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 ${data.orders.map(o => `
                     <tr>
-                        <td><a href="#" onclick="showOrder('${o.id}')">${o.order_number}</a></td>
+                        <td><a href="#" onclick="showOrder('${o.id}'); return false;">${o.order_number}</a></td>
                         <td>${o.customer_name}</td>
                         <td>${o.customer_phone}</td>
                         <td>৳${o.total}</td>
                         <td><span class="badge badge-${o.status}">${o.status}</span></td>
-                        <td>${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
-                        <td>
+                        <td style="font-size:0.85rem;">${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
+                        <td style="white-space:nowrap;">
                             ${o.status === 'pending' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'confirmed')">Confirm</button>` : ''}
                             ${o.status === 'confirmed' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'shipped')">Ship</button>` : ''}
                             ${o.status === 'shipped' ? `<button class="outline" style="padding:0.2rem 0.5rem;" onclick="updateStatus('${o.id}', 'delivered')">Delivered</button>` : ''}
+                            ${['pending','confirmed'].includes(o.status) ? `<button class="outline secondary" style="padding:0.2rem 0.5rem;" onclick="cancelOrder('${o.id}')">Cancel</button>` : ''}
                         </td>
                     </tr>
                 `).join('')}
@@ -84,12 +281,14 @@ async function loadOrders() {
 async function showOrder(id) {
     const resp = await fetch(`/api/tenants/${tenantId}/orders/${id}`, {headers});
     const o = await resp.json();
+    currentOrderId = id;
     document.getElementById('order-title').textContent = `Order ${o.order_number}`;
+    document.getElementById('order-notes').value = o.notes || '';
     document.getElementById('order-detail').innerHTML = `
         <table>
             <tr><td><strong>Customer</strong></td><td>${o.customer_name}</td></tr>
             <tr><td><strong>Phone</strong></td><td>${o.customer_phone}</td></tr>
-            <tr><td><strong>Address</strong></td><td>${o.address_detail}, ${o.upazila || ''}, ${o.district}, ${o.division}</td></tr>
+            <tr><td><strong>Address</strong></td><td>${[o.address_detail, o.upazila, o.district, o.division].filter(Boolean).join(', ')}</td></tr>
             <tr><td><strong>Payment</strong></td><td>${o.payment_method.toUpperCase()}</td></tr>
             <tr><td><strong>Status</strong></td><td><span class="badge badge-${o.status}">${o.status}</span></td></tr>
         </table>
@@ -105,6 +304,14 @@ async function showOrder(id) {
     document.getElementById('order-modal').showModal();
 }
 
+async function saveNotes() {
+    if (!currentOrderId) return;
+    await fetch(`/api/tenants/${tenantId}/orders/${currentOrderId}/notes`, {
+        method: 'PATCH', headers, body: JSON.stringify({notes: document.getElementById('order-notes').value})
+    });
+    alert('Notes saved');
+}
+
 async function updateStatus(id, status) {
     await fetch(`/api/tenants/${tenantId}/orders/${id}/status`, {
         method: 'PATCH', headers, body: JSON.stringify({status})
@@ -112,6 +319,38 @@ async function updateStatus(id, status) {
     loadOrders();
 }
 
+function cancelOrder(id) {
+    document.getElementById('cancel-order-id').value = id;
+    document.getElementById('cancel-reason').value = '';
+    document.getElementById('cancel-modal').showModal();
+}
+
+async function confirmCancel() {
+    const id = document.getElementById('cancel-order-id').value;
+    const reason = document.getElementById('cancel-reason').value;
+    await fetch(`/api/tenants/${tenantId}/orders/${id}/status`, {
+        method: 'PATCH', headers, body: JSON.stringify({status: 'cancelled', notes: reason})
+    });
+    document.getElementById('cancel-modal').close();
+    loadOrders();
+}
+
+function exportCSV() {
+    if (!allOrders.length) { alert('No orders to export'); return; }
+    const rows = [['Order#','Customer','Phone','Division','District','Total','Status','Payment','Date']];
+    allOrders.forEach(o => {
+        rows.push([o.order_number, o.customer_name, o.customer_phone, o.division, o.district, o.total, o.status, o.payment_method, new Date(o.created_at).toLocaleDateString()]);
+    });
+    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `orders_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+}
+
+loadDivisions();
+loadProductsForSelect();
 loadOrders();
 </script>
 {% endblock %}
