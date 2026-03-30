@@ -1,24 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Conversations - Mama Sales Agent{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<h2>Conversations</h2>
+<div class="section-header">
+    <h2>Conversations</h2>
+    <a href="/dashboard/{{ tenant_id }}/chat" role="button" class="outline" style="padding:0.3rem 0.8rem;">+ New Test Chat</a>
+</div>
 
 <div id="conversations-container"></div>
 
 <dialog id="conv-modal">
-    <article style="min-width: 600px; max-height: 80vh;">
-        <header><h3 id="conv-title"></h3></header>
-        <div class="chat-container" id="conv-messages" style="max-height: 400px;"></div>
-        <footer>
-            <button class="secondary" onclick="document.getElementById('conv-modal').close()">Close</button>
-        </footer>
+    <article style="min-width: 650px; max-height: 85vh;">
+        <header>
+            <div class="section-header">
+                <h3 id="conv-title"></h3>
+                <button class="outline secondary" style="padding:0.2rem 0.6rem;" onclick="document.getElementById('conv-modal').close()">Close</button>
+            </div>
+        </header>
+        <div class="chat-container" id="conv-messages" style="max-height: 50vh;"></div>
     </article>
 </dialog>
 
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
 const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 
@@ -28,38 +35,57 @@ async function loadConversations() {
     const container = document.getElementById('conversations-container');
 
     if (data.conversations.length === 0) {
-        container.innerHTML = '<p>No conversations yet. Use Test Chat to start one.</p>';
+        container.innerHTML = '<article><p>No conversations yet. <a href="/dashboard/' + tenantId + '/chat">Start a test chat</a> to see conversations here.</p></article>';
         return;
     }
 
     container.innerHTML = `
         <table>
-            <thead><tr><th>Customer</th><th>Status</th><th>Last Message</th><th>Action</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Messages</th>
+                    <th>Last Message</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
             <tbody>
                 ${data.conversations.map(c => `
                     <tr>
-                        <td>${c.customer_name || 'Unknown'}</td>
+                        <td><strong>${c.customer_name || 'Customer'}</strong></td>
                         <td><span class="badge badge-${c.status}">${c.status}</span></td>
-                        <td>${new Date(c.last_message_at).toLocaleString('en-BD')}</td>
-                        <td><button class="outline" style="padding:0.2rem 0.5rem;" onclick="showConv('${c.id}')">View</button></td>
+                        <td>${c.message_count || '-'}</td>
+                        <td style="font-size:0.85rem;">${new Date(c.last_message_at).toLocaleString('en-BD')}</td>
+                        <td><button class="outline" style="padding:0.2rem 0.5rem;" onclick="showConv('${c.id}', '${c.customer_name || 'Customer'}')">View</button></td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
+        <small>Total: ${data.total || data.conversations.length} conversations</small>
     `;
 }
 
-async function showConv(id) {
+async function showConv(id, name) {
     const resp = await fetch(`/api/tenants/${tenantId}/conversations/${id}`, {headers});
     const data = await resp.json();
-    document.getElementById('conv-title').textContent = `Chat with ${data.customer_name || 'Customer'}`;
-    document.getElementById('conv-messages').innerHTML = data.messages.map(m => `
-        <div class="chat-message ${m.role}">
-            <div class="chat-bubble">${m.content}</div>
-        </div>
-    `).join('');
+    document.getElementById('conv-title').textContent = `Chat with ${name}`;
+    document.getElementById('conv-messages').innerHTML = data.messages.map(m => {
+        const content = m.role === 'assistant' ? marked.parse(m.content) : m.content;
+        return `
+            <div class="chat-message ${m.role}">
+                <div>
+                    <div class="chat-bubble">${content}</div>
+                    <div style="font-size:0.65rem; color:#94a3b8; margin-top:2px; ${m.role === 'assistant' ? 'text-align:right' : ''}">${new Date(m.created_at).toLocaleTimeString('en-BD')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
     document.getElementById('conv-modal').showModal();
-    document.getElementById('conv-messages').scrollTop = document.getElementById('conv-messages').scrollHeight;
+    setTimeout(() => {
+        const box = document.getElementById('conv-messages');
+        box.scrollTop = box.scrollHeight;
+    }, 100);
 }
 
 loadConversations();

@@ -1,36 +1,95 @@
 {% extends "base.html" %}
 {% block title %}Test Chat - Mama Sales Agent{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    .chat-container { max-height: 60vh; }
+    .assistant .chat-bubble { white-space: normal; }
+    .assistant .chat-bubble h1, .assistant .chat-bubble h2, .assistant .chat-bubble h3,
+    .assistant .chat-bubble h4 { margin: 0.5rem 0 0.3rem; font-size: 1rem; color: #93c5fd; }
+    .assistant .chat-bubble p { margin: 0.3rem 0; }
+    .assistant .chat-bubble ul, .assistant .chat-bubble ol { margin: 0.3rem 0; padding-left: 1.2rem; }
+    .assistant .chat-bubble strong { color: #e2e8f0; }
+    .assistant .chat-bubble code { background: rgba(255,255,255,0.1); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
+    .chat-meta { font-size: 0.7rem; color: #94a3b8; margin-top: 0.3rem; text-align: right; }
+    .customer .chat-meta { text-align: left; }
+    .chat-input-row { display: flex; gap: 0.5rem; align-items: center; }
+    .chat-input-row input { flex: 1; margin: 0; }
+    .chat-input-row button { width: auto; margin: 0; }
+    .chat-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    #session-tokens { font-size: 0.8rem; color: #64748b; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>Test Chat</h2>
-<p>Simulate customer conversations without Facebook. Type messages as a customer would.</p>
+<div class="section-header">
+    <h2>Test Chat</h2>
+    <div style="display:flex; gap:1rem; align-items:center;">
+        <span id="session-tokens">Tokens: 0</span>
+        <button class="outline secondary" style="padding:0.3rem 0.8rem; width:auto;" onclick="clearChat()">Clear Chat</button>
+    </div>
+</div>
+<p style="margin-bottom:0.5rem;"><small>Simulate customer conversations. Type in Bangla, Banglish, or English.</small></p>
+
+<div class="chat-actions">
+    <button class="outline" style="padding:0.2rem 0.6rem; font-size:0.8rem;" onclick="sendQuick('ভাই মধু আছে?')">ভাই মধু আছে?</button>
+    <button class="outline" style="padding:0.2rem 0.6rem; font-size:0.8rem;" onclick="sendQuick('product list daw')">product list daw</button>
+    <button class="outline" style="padding:0.2rem 0.6rem; font-size:0.8rem;" onclick="sendQuick('order korte chai')">order korte chai</button>
+    <button class="outline" style="padding:0.2rem 0.6rem; font-size:0.8rem;" onclick="sendQuick('delivery charge koto?')">delivery charge?</button>
+</div>
 
 <div class="chat-container" id="chat-box">
     <div class="chat-message assistant">
-        <div class="chat-bubble">Assalamu Alaikum! How can I help you today? 😊</div>
+        <div>
+            <div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div>
+        </div>
     </div>
 </div>
 
-<form id="chat-form" style="display: flex; gap: 0.5rem;">
-    <input type="text" id="message-input" placeholder="Type a message... (Bangla, Banglish, or English)" style="flex: 1;" autofocus>
-    <button type="submit" style="width: auto;">Send</button>
+<form id="chat-form" class="chat-input-row">
+    <input type="text" id="message-input" placeholder="Type a message... (Bangla, Banglish, or English)" autofocus>
+    <button type="submit">Send</button>
 </form>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
-
 const tenantId = '{{ tenant_id }}';
 const chatBox = document.getElementById('chat-box');
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message-input');
+let sessionTokens = 0;
 
-function addMessage(text, role) {
+function addMessage(text, role, tokens) {
     const div = document.createElement('div');
     div.className = `chat-message ${role}`;
-    div.innerHTML = `<div class="chat-bubble">${text}</div>`;
+
+    let bubble;
+    if (role === 'assistant') {
+        // Render markdown for assistant messages
+        const html = marked.parse(text);
+        bubble = `<div><div class="chat-bubble">${html}</div>${tokens ? `<div class="chat-meta">${tokens} tokens</div>` : ''}</div>`;
+    } else {
+        bubble = `<div><div class="chat-bubble">${text}</div></div>`;
+    }
+    div.innerHTML = bubble;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendQuick(msg) {
+    input.value = msg;
+    form.dispatchEvent(new Event('submit'));
+}
+
+function clearChat() {
+    chatBox.innerHTML = `
+        <div class="chat-message assistant">
+            <div><div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div></div>
+        </div>`;
+    sessionTokens = 0;
+    document.getElementById('session-tokens').textContent = 'Tokens: 0';
 }
 
 form.addEventListener('submit', async (e) => {
@@ -42,11 +101,11 @@ form.addEventListener('submit', async (e) => {
     input.value = '';
     input.disabled = true;
 
-    // Show typing indicator
+    // Typing indicator
     const typingDiv = document.createElement('div');
     typingDiv.className = 'chat-message assistant';
     typingDiv.id = 'typing';
-    typingDiv.innerHTML = '<div class="chat-bubble" aria-busy="true">Typing...</div>';
+    typingDiv.innerHTML = '<div><div class="chat-bubble" aria-busy="true">Thinking...</div></div>';
     chatBox.appendChild(typingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -57,11 +116,13 @@ form.addEventListener('submit', async (e) => {
             body: JSON.stringify({tenant_id: tenantId, message: msg, customer_name: 'Test Customer'})
         });
         const data = await resp.json();
-
         document.getElementById('typing')?.remove();
 
         if (resp.ok) {
-            addMessage(data.reply, 'assistant');
+            const tokens = data.tokens_used || 0;
+            sessionTokens += tokens;
+            document.getElementById('session-tokens').textContent = `Tokens: ${sessionTokens.toLocaleString()}`;
+            addMessage(data.reply, 'assistant', tokens);
         } else {
             addMessage(`Error: ${data.detail || 'Failed to get response'}`, 'assistant');
         }

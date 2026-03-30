@@ -11,10 +11,28 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — auto-create missing tables
+    from sqlalchemy import text
+    from app.database import engine
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS token_usage (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL REFERENCES tenants(id),
+                    usage_type VARCHAR(20) NOT NULL,
+                    model VARCHAR(100) NOT NULL,
+                    prompt_tokens INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    total_tokens INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_token_usage_tenant ON token_usage(tenant_id)"))
+    except Exception:
+        pass  # DB may not be ready yet
     yield
     # Shutdown
-    from app.database import engine
     await engine.dispose()
 
 

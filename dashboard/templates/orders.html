@@ -29,8 +29,6 @@
 </dialog>
 
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
 const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 

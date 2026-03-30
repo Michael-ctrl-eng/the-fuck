@@ -141,7 +141,7 @@ async def _extract_products_from_pages(
     import re
 
     all_content = "\n\n---\n\n".join(
-        f"Page: {p.get('title', p.get('url', ''))}\n{p.get('content', '')[:2000]}"
+        f"Page URL: {p.get('url', '')}\nPage: {p.get('title', '')}\n{p.get('content', '')[:2000]}"
         for p in pages[:20]
     )
 
@@ -150,22 +150,40 @@ async def _extract_products_from_pages(
 For each product, extract:
 - "name" (required): product name
 - "price" (required): numeric price (just the number, no currency symbol)
-- Any other relevant attributes you find (description, category, color, size, weight, brand, material, etc.)
+- "url" (if available): the product page URL from "Page URL" above
+- "description": product description, quality details, specifications — be detailed
+- Any other relevant attributes (category, color, size, weight, brand, material, flavor, ingredients, etc.)
 
-Return as a JSON array. Include ALL attributes you can find.
-If no products found, return an empty array [].
+IMPORTANT: Include rich descriptions with quality details — anything that helps sell the product.
+Return as a JSON array. If no products found, return an empty array [].
 
 Website content:
 {all_content[:6000]}"""
 
     try:
         logger.info(f"Sending {len(all_content)} chars to LLM for product extraction...")
-        response = await chat_completion(
+        from app.ai.llm_client import chat_completion_with_usage
+        from app.models.token_usage import TokenUsage
+        llm_result = await chat_completion_with_usage(
             [{"role": "user", "content": prompt}],
             temperature=0.1,
             max_tokens=3000,
         )
+        response = llm_result.content
         logger.info(f"LLM response ({len(response)} chars): {response[:200]}...")
+
+        # Track crawl token usage
+        usage = TokenUsage(
+            id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            usage_type="crawl",
+            model=llm_result.model,
+            prompt_tokens=llm_result.prompt_tokens,
+            completion_tokens=llm_result.completion_tokens,
+            total_tokens=llm_result.total_tokens,
+        )
+        db.add(usage)
+        await db.flush()
 
         json_match = re.search(r'\[.*\]', response, re.DOTALL)
         if not json_match:
@@ -186,7 +204,8 @@ Website content:
                 p.pop("price", None)
                 attributes = {k: v for k, v in p.items() if v is not None}
 
-                source_ref = f"{base_url}#product-{i}"
+                product_url = attributes.get("url", "")
+                source_ref = product_url if product_url else f"{base_url}#product-{i}"
 
                 await create_product(
                     db, tenant_id,

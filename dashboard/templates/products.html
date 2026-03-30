@@ -2,11 +2,12 @@
 {% block title %}Products - Mama Sales Agent{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center;">
+<div class="section-header">
     <h2>Products</h2>
-    <div>
-        <button id="add-btn" class="outline">+ Add Product</button>
-        <button id="csv-btn" class="secondary">Upload CSV</button>
+    <div style="display:flex; gap:0.5rem;">
+        <button id="add-btn" class="outline" style="padding:0.3rem 0.8rem;">+ Add Product</button>
+        <button id="csv-btn" class="secondary" style="padding:0.3rem 0.8rem;">Upload CSV</button>
+        <a href="/dashboard/{{ tenant_id }}/crawl" role="button" class="outline" style="padding:0.3rem 0.8rem;">Crawl Website</a>
     </div>
 </div>
 
@@ -69,8 +70,6 @@
 <div id="products-table"></div>
 
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
 const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 

@@ -395,9 +395,8 @@ def _sanitize_text(text: str) -> str:
         if alpha_ratio < 0.3 and len(line) > 20:
             continue
         skip_patterns = [
-            'copyright', 'all rights reserved', 'privacy policy', 'terms of service',
-            'cookie policy', 'powered by', 'follow us', 'subscribe', 'newsletter',
-            'social media', 'loading...', 'please wait',
+            'copyright', 'all rights reserved',
+            'powered by', 'loading...', 'please wait',
         ]
         if any(p in line.lower() for p in skip_patterns):
             continue

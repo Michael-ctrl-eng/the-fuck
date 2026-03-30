@@ -2,38 +2,49 @@
 {% block title %}Crawl Website - Mama Sales Agent{% endblock %}
 
 {% block content %}
-<h2>Website Crawler</h2>
-<p>Crawl your website to automatically extract products and build AI knowledge base.</p>
+<div class="section-header">
+    <h2>Website Crawler</h2>
+</div>
+<p><small>Crawl your website to automatically extract products, policies, FAQs, and build the AI knowledge base.</small></p>
 
 <article>
     <form id="crawl-form">
         <div class="grid">
             <div>
-                <label>Website URL</label>
+                <label>Website URL *</label>
                 <input type="url" id="crawl-url" required placeholder="https://yourstore.com">
             </div>
             <div>
-                <label>Depth</label>
-                <input type="number" id="crawl-depth" value="3" min="1" max="5">
+                <label>Crawl Depth</label>
+                <select id="crawl-depth">
+                    <option value="1">1 — Homepage only</option>
+                    <option value="2" selected>2 — Homepage + linked pages</option>
+                    <option value="3">3 — Deep crawl (slower)</option>
+                </select>
             </div>
             <div style="display: flex; align-items: flex-end;">
-                <button type="submit">Start Crawl</button>
+                <button type="submit" id="crawl-btn">Start Crawl</button>
             </div>
         </div>
     </form>
 </article>
 
-<h3>Crawl Jobs</h3>
+<div class="section-header">
+    <h3>Crawl Jobs</h3>
+    <button class="outline secondary" style="padding:0.3rem 0.7rem;" onclick="loadJobs()">Refresh</button>
+</div>
 <div id="jobs-container"></div>
 
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
 const tenantId = '{{ tenant_id }}';
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 
 document.getElementById('crawl-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = document.getElementById('crawl-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
     const url = document.getElementById('crawl-url').value;
     const depth = parseInt(document.getElementById('crawl-depth').value);
 
@@ -41,6 +52,9 @@ document.getElementById('crawl-form').addEventListener('submit', async (e) => {
         method: 'POST', headers,
         body: JSON.stringify({url, depth})
     });
+
+    btn.disabled = false;
+    btn.textContent = 'Start Crawl';
 
     if (resp.ok) {
         loadJobs();
@@ -50,37 +64,75 @@ document.getElementById('crawl-form').addEventListener('submit', async (e) => {
     }
 });
 
+function statusBadge(status) {
+    const colors = {
+        pending: 'pending', crawling: 'crawling', indexing: 'indexing',
+        completed: 'completed', failed: 'failed'
+    };
+    return `<span class="badge badge-${colors[status] || 'pending'}">${status}</span>`;
+}
+
+function statusIcon(status) {
+    return {pending: '⏳', crawling: '🔄', indexing: '📚', completed: '✅', failed: '❌'}[status] || '⏳';
+}
+
 async function loadJobs() {
     const resp = await fetch(`/api/tenants/${tenantId}/crawl/jobs`, {headers});
     const jobs = await resp.json();
     const container = document.getElementById('jobs-container');
 
     if (jobs.length === 0) {
-        container.innerHTML = '<p>No crawl jobs yet.</p>';
+        container.innerHTML = '<p>No crawl jobs yet. Enter a URL above to start crawling.</p>';
         return;
     }
 
     container.innerHTML = `
         <table>
-            <thead><tr><th>URL</th><th>Status</th><th>Pages</th><th>Products</th><th>Error</th><th>Date</th></tr></thead>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>URL</th>
+                    <th>Status</th>
+                    <th>Pages</th>
+                    <th>Products</th>
+                    <th>Info</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
             <tbody>
                 ${jobs.map(j => `
                     <tr>
-                        <td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">${j.url}</td>
-                        <td><span class="badge badge-${j.status === 'completed' ? 'delivered' : j.status === 'failed' ? 'cancelled' : 'pending'}">${j.status}</span></td>
+                        <td>${statusIcon(j.status)}</td>
+                        <td style="max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <a href="${j.url}" target="_blank">${j.url}</a>
+                        </td>
+                        <td>${statusBadge(j.status)}</td>
                         <td>${j.pages_found}</td>
                         <td>${j.products_extracted}</td>
-                        <td style="max-width:200px; overflow:hidden;">${j.error_message || '-'}</td>
-                        <td>${j.created_at.split('T')[0] || j.created_at.split(' ')[0]}</td>
+                        <td style="max-width:200px; overflow:hidden; font-size:0.8rem; color:#64748b;">
+                            ${j.error_message || (j.status === 'completed' ? 'Success' : j.status === 'crawling' ? 'Discovering URLs...' : j.status === 'indexing' ? 'Extracting products...' : 'Queued')}
+                        </td>
+                        <td style="white-space:nowrap; font-size:0.85rem;">${new Date(j.created_at).toLocaleDateString('en-BD')}</td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
     `;
+
+    // Auto-refresh if any jobs are in progress
+    const active = jobs.some(j => ['pending', 'crawling', 'indexing'].includes(j.status));
+    if (active) {
+        setTimeout(loadJobs, 8000);
+    }
 }
 
+// Pre-fill URL from tenant's website
+fetch(`/api/tenants/${tenantId}`, {headers}).then(r => r.json()).then(t => {
+    if (t.website_url && !document.getElementById('crawl-url').value) {
+        document.getElementById('crawl-url').value = t.website_url;
+    }
+});
+
 loadJobs();
-// Auto-refresh every 10 seconds to check job status
-setInterval(loadJobs, 10000);
 </script>
 {% endblock %}

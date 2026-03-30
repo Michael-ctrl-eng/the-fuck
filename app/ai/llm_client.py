@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from dataclasses import dataclass
 
 import httpx
 
@@ -11,17 +11,24 @@ from app.config import get_settings
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
-# Fallback free models on OpenRouter (ordered by reliability)
+# Models that don't support system role — convert to user message
+NO_SYSTEM_ROLE = {"google/gemma", "gemma-3"}
+
+# Fallback free models — max 3 to avoid long waits
 FALLBACK_MODELS = [
-    "google/gemma-3-27b-it:free",
-    "google/gemma-3-12b-it:free",
-    "google/gemma-3-4b-it:free",
+    "arcee-ai/trinity-large-preview:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free",
-    "qwen/qwen3-4b:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-3-27b-it:free",
 ]
+
+
+@dataclass
+class LLMResponse:
+    content: str
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
 
 
 async def chat_completion(
@@ -30,10 +37,24 @@ async def chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 1024,
 ) -> str:
-    """Call OpenRouter chat completion API with fallback models."""
-    models_to_try = [model or settings.OPENROUTER_MODEL] + [
-        m for m in FALLBACK_MODELS if m != (model or settings.OPENROUTER_MODEL)
-    ]
+    """Call OpenRouter chat completion API with fallback models. Returns content string."""
+    result = await chat_completion_with_usage(messages, model, temperature, max_tokens)
+    return result.content
+
+
+async def chat_completion_with_usage(
+    messages: list[dict[str, str]],
+    model: str | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+) -> LLMResponse:
+    """Call OpenRouter and return content + token usage.
+
+    Only 1 API call per message in the normal case.
+    Fallbacks only trigger on failure (rate limit, error).
+    """
+    primary = model or settings.OPENROUTER_MODEL
+    models_to_try = [primary] + [m for m in FALLBACK_MODELS if m != primary]
 
     last_error = None
     for current_model in models_to_try:
@@ -44,9 +65,31 @@ async def chat_completion(
         except Exception as e:
             last_error = e
             logger.warning(f"Model {current_model} failed: {e}, trying next...")
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
 
     raise RuntimeError(f"All models failed. Last error: {last_error}")
+
+
+def _prepare_messages(messages: list[dict[str, str]], model: str) -> list[dict[str, str]]:
+    """Convert system messages to user messages for models that don't support system role."""
+    needs_conversion = any(fragment in model for fragment in NO_SYSTEM_ROLE)
+    if not needs_conversion:
+        return messages
+
+    converted = []
+    for msg in messages:
+        if msg["role"] == "system":
+            converted.append({
+                "role": "user",
+                "content": f"[INSTRUCTIONS]\n{msg['content']}\n[/INSTRUCTIONS]\n\nFollow these instructions for all subsequent messages."
+            })
+            converted.append({
+                "role": "assistant",
+                "content": "Understood. I will follow these instructions."
+            })
+        else:
+            converted.append(msg)
+    return converted
 
 
 async def _call_openrouter(
@@ -54,8 +97,10 @@ async def _call_openrouter(
     model: str,
     temperature: float,
     max_tokens: int,
-) -> str:
+) -> LLMResponse:
     """Make a single API call to OpenRouter."""
+    prepared_messages = _prepare_messages(messages, model)
+
     headers = {
         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
@@ -64,7 +109,7 @@ async def _call_openrouter(
     }
     payload = {
         "model": model,
-        "messages": messages,
+        "messages": prepared_messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
@@ -77,10 +122,6 @@ async def _call_openrouter(
         )
 
         if response.status_code == 429:
-            # Rate limited — wait and raise to try fallback
-            retry_after = int(response.headers.get("Retry-After", "5"))
-            logger.warning(f"Rate limited on {model}, waiting {retry_after}s")
-            await asyncio.sleep(retry_after)
             raise RuntimeError(f"Rate limited on {model}")
 
         if response.status_code != 200:
@@ -97,4 +138,14 @@ async def _call_openrouter(
         if content is None:
             raise RuntimeError(f"Model {model} returned null content")
 
-        return content
+        # Extract token usage
+        usage = data.get("usage", {})
+        used_model = data.get("model", model)
+
+        return LLMResponse(
+            content=content,
+            model=used_model,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )

@@ -30,6 +30,10 @@ beautifulsoup4==4.12.3
 # Templating
 jinja2==3.1.5
 
+# PageIndex (self-hosted) + LLM routing
+litellm>=1.82.0
+pyyaml>=6.0
+
 # Utilities
 python-dotenv==1.0.1
 aiofiles==24.1.0

@@ -257,3 +257,84 @@ async def get_all_products_for_context(
     )
     products = result.scalars().all()
     return [p.to_dict() for p in products]
+
+
+async def search_relevant_products(
+    db: AsyncSession, tenant_id: uuid.UUID, query: str, max_results: int = 8
+) -> list[dict]:
+    """Search products relevant to customer query. Zero LLM cost.
+
+    Returns at most max_results products to keep the prompt small.
+    If fewer than max_results total products exist, returns all.
+    """
+    import re
+    from difflib import SequenceMatcher
+
+    result = await db.execute(
+        select(Product)
+        .where(Product.tenant_id == tenant_id, Product.is_active == True)
+    )
+    all_products = result.scalars().all()
+
+    if not all_products:
+        return []
+
+    # If few products, return all — no need to filter
+    if len(all_products) <= max_results:
+        return [p.to_dict() for p in all_products]
+
+    query_lower = query.lower()
+    query_words = set(re.findall(r'\w+', query_lower))
+
+    # Words that don't help find products
+    stop_words = {
+        "hi", "hello", "hey", "bhai", "vai", "ache", "ki", "koto", "price",
+        "dam", "order", "chai", "korte", "lagbe", "den", "daw", "show",
+        "list", "all", "products", "product", "please", "ami", "amar",
+        "apnar", "bolen", "kemon", "achen", "assalamu", "alaikum", "the",
+        "a", "is", "what", "how", "can", "do", "you", "i", "me", "my",
+    }
+    meaningful = query_words - stop_words
+
+    scored = []
+    for p in all_products:
+        pd = p.to_dict()
+        name_lower = p.name.lower()
+        attrs = p.attributes or {}
+        desc = (attrs.get("description", "") or "").lower()
+        category = (attrs.get("category", "") or "").lower()
+        all_text = f"{name_lower} {desc} {category}"
+        all_words = set(re.findall(r'\w+', all_text))
+
+        if meaningful:
+            overlap = len(meaningful & all_words)
+            name_match = 3 if any(w in name_lower for w in meaningful) else 0
+            name_sim = SequenceMatcher(None, query_lower, name_lower).ratio()
+            score = overlap * 3 + name_match + name_sim
+        else:
+            score = 0
+
+        scored.append((score, pd))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    # If generic query (no meaningful words), return diverse sample
+    if not meaningful:
+        seen_cats = set()
+        diverse = []
+        for _, pd in scored:
+            cat = (pd.get("category") or "general")
+            if cat not in seen_cats:
+                diverse.append(pd)
+                seen_cats.add(cat)
+            if len(diverse) >= max_results:
+                break
+        # Fill remaining slots
+        for _, pd in scored:
+            if pd not in diverse:
+                diverse.append(pd)
+            if len(diverse) >= max_results:
+                break
+        return diverse
+
+    return [pd for _, pd in scored[:max_results]]

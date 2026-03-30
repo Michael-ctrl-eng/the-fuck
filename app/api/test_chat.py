@@ -70,8 +70,26 @@ async def test_chat(
     )
     conversation = conv_result.scalar_one_or_none()
 
+    # Get token usage for this response
+    tokens_used = 0
+    try:
+        from app.models.token_usage import TokenUsage
+        from sqlalchemy import desc
+        usage_result = await db.execute(
+            select(TokenUsage)
+            .where(TokenUsage.tenant_id == tenant.id)
+            .order_by(desc(TokenUsage.created_at))
+            .limit(1)
+        )
+        last_usage = usage_result.scalar_one_or_none()
+        if last_usage:
+            tokens_used = last_usage.total_tokens
+    except Exception:
+        pass
+
     return TestChatResponse(
         reply=reply,
         conversation_id=str(conversation.id) if conversation else "",
         customer_id=str(customer.id) if customer else "",
+        tokens_used=tokens_used,
     )

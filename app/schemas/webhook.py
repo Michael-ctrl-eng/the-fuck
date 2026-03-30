@@ -27,6 +27,7 @@ class TestChatResponse(BaseModel):
     reply: str
     conversation_id: str
     customer_id: str
+    tokens_used: int = 0
 
 
 class CrawlRequest(BaseModel):

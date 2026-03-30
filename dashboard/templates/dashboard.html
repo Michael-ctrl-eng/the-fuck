@@ -2,30 +2,41 @@
 {% block title %}Dashboard - Mama Sales Agent{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-
 <div id="no-tenant" style="display:none;">
     <article>
         <header><h3>Setup Your Business</h3></header>
-        <p>Create your first business to get started.</p>
+        <p>Create your first business to get started. Provide your website URL and we'll automatically crawl it to build your AI chatbot.</p>
         <form id="create-tenant-form">
-            <label for="page_name">Business / Page Name</label>
+            <label for="page_name">Business / Page Name *</label>
             <input type="text" id="page_name" required placeholder="My Fashion Store">
 
-            <label for="website_url">Website URL (optional, for crawling)</label>
+            <label for="website_url">Website URL (we'll crawl this to train your AI)</label>
             <input type="url" id="website_url" placeholder="https://mystore.com">
 
-            <label for="business_email">Business Email (for notifications)</label>
-            <input type="email" id="business_email" placeholder="owner@store.com">
+            <div class="grid">
+                <div>
+                    <label for="business_email">Business Email</label>
+                    <input type="email" id="business_email" placeholder="owner@store.com">
+                </div>
+                <div>
+                    <label for="business_phone">Phone Number</label>
+                    <input type="text" id="business_phone" placeholder="01712345678">
+                </div>
+            </div>
 
-            <label for="business_phone">Phone Number</label>
-            <input type="text" id="business_phone" placeholder="01712345678">
-
-            <label for="fb_page_id">Facebook Page ID (optional)</label>
-            <input type="text" id="fb_page_id" placeholder="123456789">
-
-            <label for="page_access_token">Page Access Token (optional)</label>
-            <input type="text" id="page_access_token" placeholder="Paste your FB page access token">
+            <details>
+                <summary>Facebook Integration (optional)</summary>
+                <div class="grid">
+                    <div>
+                        <label for="fb_page_id">Facebook Page ID</label>
+                        <input type="text" id="fb_page_id" placeholder="123456789">
+                    </div>
+                    <div>
+                        <label for="page_access_token">Page Access Token</label>
+                        <input type="text" id="page_access_token" placeholder="Paste your FB access token">
+                    </div>
+                </div>
+            </details>
 
             <button type="submit">Create Business</button>
         </form>
@@ -33,14 +44,14 @@
 </div>
 
 <div id="tenant-list" style="display:none;">
-    <h3>Your Businesses</h3>
+    <div class="section-header">
+        <h2>Your Businesses</h2>
+        <button class="outline" onclick="document.getElementById('no-tenant').style.display='block'">+ New Business</button>
+    </div>
     <div id="tenants-container"></div>
 </div>
 
 <script>
-const token = localStorage.getItem('token');
-if (!token) window.location.href = '/dashboard/login';
-
 const headers = {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`};
 
 async function loadTenants() {
@@ -53,21 +64,70 @@ async function loadTenants() {
     } else {
         document.getElementById('tenant-list').style.display = 'block';
         const container = document.getElementById('tenants-container');
-        container.innerHTML = tenants.map(t => `
-            <article>
-                <header>
-                    <h4>${t.page_name}</h4>
-                    ${t.website_url ? `<small>${t.website_url}</small>` : ''}
-                </header>
-                <div class="grid">
-                    <a href="/dashboard/${t.id}/chat" role="button">Test Chat</a>
-                    <a href="/dashboard/${t.id}/products" role="button" class="secondary">Products</a>
-                    <a href="/dashboard/${t.id}/orders" role="button" class="secondary">Orders</a>
-                    <a href="/dashboard/${t.id}/settings" role="button" class="outline">Settings</a>
-                </div>
-            </article>
-        `).join('');
+
+        // Load stats for each tenant
+        const cards = await Promise.all(tenants.map(async t => {
+            let stats = {};
+            try {
+                const sr = await fetch(`/api/tenants/${t.id}/stats`, {headers});
+                stats = await sr.json();
+            } catch(e) {}
+            return renderTenantCard(t, stats);
+        }));
+        container.innerHTML = cards.join('');
     }
+}
+
+function renderTenantCard(t, s) {
+    return `
+        <article>
+            <header>
+                <div class="section-header">
+                    <div>
+                        <h3 style="margin:0;">${t.page_name}</h3>
+                        ${t.website_url ? `<small style="color:var(--pico-muted-color);">${t.website_url}</small>` : ''}
+                    </div>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card"><h2>${s.products_count || 0}</h2><p>Products</p></div>
+                <div class="stat-card"><h2>${s.orders_count || 0}</h2><p>Orders</p></div>
+                <div class="stat-card"><h2>${s.pending_orders || 0}</h2><p>Pending</p></div>
+                <div class="stat-card"><h2>${s.active_conversations || 0}</h2><p>Active Chats</p></div>
+                <div class="stat-card"><h2>৳${(s.total_revenue || 0).toLocaleString()}</h2><p>Revenue</p></div>
+            </div>
+
+            <!-- Token Usage -->
+            <div class="token-bar">
+                <div class="token-item">
+                    <span>Total Tokens:</span>
+                    <span class="token-value">${(s.total_tokens || 0).toLocaleString()}</span>
+                </div>
+                <div class="token-item">
+                    <span>Chat:</span>
+                    <span class="token-value">${(s.chat_tokens || 0).toLocaleString()}</span>
+                </div>
+                <div class="token-item">
+                    <span>Crawl/Training:</span>
+                    <span class="token-value">${(s.crawl_tokens || 0).toLocaleString()}</span>
+                </div>
+                <div class="token-item">
+                    <span>LLM Calls:</span>
+                    <span class="token-value">${s.llm_calls || 0}</span>
+                </div>
+            </div>
+
+            <div class="grid">
+                <a href="/dashboard/${t.id}/chat" role="button">Test Chat</a>
+                <a href="/dashboard/${t.id}/products" role="button" class="secondary">Products</a>
+                <a href="/dashboard/${t.id}/orders" role="button" class="secondary">Orders</a>
+                <a href="/dashboard/${t.id}/crawl" role="button" class="outline">Crawl Website</a>
+                <a href="/dashboard/${t.id}/conversations" role="button" class="outline">Conversations</a>
+                <a href="/dashboard/${t.id}/settings" role="button" class="outline">Settings</a>
+            </div>
+        </article>
+    `;
 }
 
 document.getElementById('create-tenant-form').addEventListener('submit', async (e) => {
@@ -81,7 +141,22 @@ document.getElementById('create-tenant-form').addEventListener('submit', async (
         page_access_token: document.getElementById('page_access_token').value || null,
     };
     const resp = await fetch('/api/tenants', {method: 'POST', headers, body: JSON.stringify(body)});
-    if (resp.ok) window.location.reload();
+    if (resp.ok) {
+        const tenant = await resp.json();
+        // If website URL provided, auto-start crawl
+        if (body.website_url) {
+            try {
+                await fetch(`/api/tenants/${tenant.id}/crawl`, {
+                    method: 'POST', headers,
+                    body: JSON.stringify({url: body.website_url, depth: 2})
+                });
+            } catch(e) {}
+        }
+        window.location.reload();
+    } else {
+        const err = await resp.json();
+        alert(err.detail || 'Failed to create business');
+    }
 });
 
 loadTenants();

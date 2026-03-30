@@ -90,24 +90,27 @@ async def _extract_and_save_products(db, tenant_id: uuid.UUID, pages: list[dict]
     import json
     import re
 
+    # Build page content with URLs preserved for product URL extraction
     all_content = "\n\n---\n\n".join(
-        f"Page: {p.get('title', p.get('url', ''))}\n{p.get('content', '')[:2000]}"
+        f"Page URL: {p.get('url', '')}\nPage: {p.get('title', '')}\n{p.get('content', '')[:2000]}"
         for p in pages[:20]
     )
+
+    # Build a URL lookup — map product names/titles to their page URLs
+    page_urls = [p.get("url", "") for p in pages[:20]]
 
     prompt = f"""Extract all products from this website content.
 
 For each product, extract:
 - "name" (required): product name
 - "price" (required): numeric price (just the number, no currency symbol)
-- Any other relevant attributes you find (description, category, color, size, weight, brand, material, flavor, specs, etc.)
+- "url" (if available): the product page URL from the "Page URL" above where this product was found
+- "description": product description, quality details, specifications — be detailed
+- Any other relevant attributes you find (category, color, size, weight, brand, material, flavor, ingredients, specs, etc.)
+
+IMPORTANT: Include rich descriptions with quality details, ingredients, specifications — anything that helps sell the product.
 
 Return as a JSON array. Include ALL attributes you can find for each product.
-
-Example outputs:
-[{{"name": "Cotton Saree", "price": 1500, "description": "Premium quality", "category": "Clothing", "material": "cotton", "color": "white"}}]
-[{{"name": "Samsung A15", "price": 18000, "brand": "Samsung", "RAM": "6GB", "storage": "128GB"}}]
-[{{"name": "Chocolate Cake", "price": 850, "weight": "1kg", "flavor": "dark chocolate"}}]
 
 If no products found, return an empty array [].
 
@@ -141,8 +144,9 @@ Website content:
                 # Everything else becomes attributes
                 attributes = {k: v for k, v in p.items() if v is not None}
 
-                # Unique source_ref per product to avoid constraint violations
-                source_ref = f"{base_url}#product-{i}"
+                # Use actual product URL as source_ref if available, else generate unique one
+                product_url = attributes.get("url", "")
+                source_ref = product_url if product_url else f"{base_url}#product-{i}"
 
                 await create_product(
                     db,

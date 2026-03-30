@@ -10,18 +10,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.ai.language import detect_language
-from app.ai.llm_client import chat_completion
+from app.ai.llm_client import chat_completion_with_usage
 from app.ai.order_collector import clean_response_for_customer, extract_order_from_response
 from app.ai.prompts import get_product_context, get_system_prompt
+from app.knowledge.retriever import retrieve_relevant_info
 from app.models.conversation import Conversation
 from app.models.customer import Customer
 from app.models.message import Message
 from app.models.tenant import Tenant
-from app.services.product_service import get_all_products_for_context
+from app.services.product_service import search_relevant_products
 
 logger = logging.getLogger(__name__)
 
-MAX_HISTORY_MESSAGES = 15
+MAX_HISTORY_MESSAGES = 10
 
 
 async def process_customer_message(
@@ -55,44 +56,51 @@ async def process_customer_message(
     # 4. Load conversation history
     history = await _load_conversation_history(db, conversation.id)
 
-    # 5. Get product catalog
-    products = await get_all_products_for_context(db, tenant.id)
+    # 5. Get relevant products (not all — keeps prompt small)
+    products = await search_relevant_products(db, tenant.id, message_text, max_results=8)
     products_context = get_product_context(products)
 
-    # 6. Detect language
+    # 6. Retrieve relevant knowledge base info (zero extra LLM cost for small KBs)
+    knowledge_context = await retrieve_relevant_info(db, tenant.id, message_text, max_results=3)
+
+    # 7. Detect language
     lang = detect_language(message_text)
 
-    # 7. Build system prompt
+    # 8. Build system prompt
     system_prompt = get_system_prompt(
         business_name=tenant.page_name,
         products_context=products_context,
+        knowledge_context=knowledge_context,
         language_hint=lang,
     )
 
-    # 8. Build messages for LLM
+    # 9. Build messages for LLM
     llm_messages = [{"role": "system", "content": system_prompt}]
     for msg in history:
         role = "user" if msg.role == "customer" else "assistant"
         llm_messages.append({"role": role, "content": msg.content})
     llm_messages.append({"role": "user", "content": message_text})
 
-    # 9. Call LLM
+    # 10. Call LLM
+    token_info = None
     try:
-        raw_response = await chat_completion(llm_messages)
+        llm_result = await chat_completion_with_usage(llm_messages)
+        raw_response = llm_result.content
+        token_info = llm_result
     except Exception as e:
         logger.error(f"LLM call failed: {e}")
         raw_response = _get_fallback_response(lang)
 
-    # 10. Check for order data in response
+    # 11. Check for order data in response
     order_data = extract_order_from_response(raw_response)
     if order_data:
         await _create_order_from_data(db, tenant, customer, conversation, order_data, products)
         conversation.status = "order_placed"
 
-    # 11. Clean response (remove JSON blocks)
+    # 12. Clean response (remove JSON blocks)
     clean_reply = clean_response_for_customer(raw_response)
 
-    # 12. Save assistant message
+    # 13. Save assistant message
     assistant_msg = Message(
         id=uuid.uuid4(),
         conversation_id=conversation.id,
@@ -101,7 +109,21 @@ async def process_customer_message(
     )
     db.add(assistant_msg)
 
-    # 13. Update conversation timestamp
+    # 14. Track token usage
+    if token_info:
+        from app.models.token_usage import TokenUsage
+        usage = TokenUsage(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            usage_type="chat",
+            model=token_info.model,
+            prompt_tokens=token_info.prompt_tokens,
+            completion_tokens=token_info.completion_tokens,
+            total_tokens=token_info.total_tokens,
+        )
+        db.add(usage)
+
+    # 15. Update conversation timestamp
     conversation.last_message_at = datetime.utcnow()
     await db.flush()
 
@@ -135,14 +157,23 @@ async def _get_or_create_customer(
 async def _get_or_create_conversation(
     db: AsyncSession, tenant_id: uuid.UUID, customer_id: uuid.UUID
 ) -> Conversation:
+    # One conversation per customer per business — always reuse existing
     result = await db.execute(
-        select(Conversation).where(
+        select(Conversation)
+        .where(
             Conversation.tenant_id == tenant_id,
             Conversation.customer_id == customer_id,
-            Conversation.status == "active",
         )
+        .order_by(Conversation.started_at.desc())
+        .limit(1)
     )
     conversation = result.scalar_one_or_none()
+
+    if conversation:
+        # Reactivate if it was closed
+        if conversation.status != "active":
+            conversation.status = "active"
+        return conversation
 
     if not conversation:
         conversation = Conversation(

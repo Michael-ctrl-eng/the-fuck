@@ -6,54 +6,97 @@
     <title>{% block title %}Mama Sales Agent{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
-        :root {
-            --pico-font-size: 16px;
+        :root { --pico-font-size: 15px; }
+        body { min-height: 100vh; display: flex; flex-direction: column; }
+        main.container { flex: 1; }
+
+        /* Top nav */
+        .top-nav {
+            background: #1a1a2e;
+            padding: 0.6rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        nav {
-            background: var(--pico-primary-background);
-            padding: 0.5rem 1rem;
-            margin-bottom: 1rem;
+        .top-nav .brand { color: #fff; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+        .top-nav .brand:hover { color: #e2e8f0; }
+        .top-nav .nav-links { display: flex; gap: 0.3rem; align-items: center; }
+        .top-nav .nav-links a {
+            color: #cbd5e1;
+            text-decoration: none;
+            padding: 0.35rem 0.7rem;
+            border-radius: 0.4rem;
+            font-size: 0.85rem;
+            transition: all 0.15s;
         }
-        nav ul {
-            margin: 0;
+        .top-nav .nav-links a:hover, .top-nav .nav-links a.active {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
         }
-        nav a {
-            color: var(--pico-primary-inverse) !important;
+        .top-nav .nav-right { display: flex; align-items: center; gap: 0.8rem; }
+        .top-nav .user-badge {
+            color: #94a3b8;
+            font-size: 0.8rem;
         }
+        .top-nav .logout-btn {
+            color: #f87171;
+            background: none;
+            border: 1px solid #f87171;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.4rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .top-nav .logout-btn:hover { background: #f87171; color: #fff; }
+
+        /* Stats grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
         }
         .stat-card {
             text-align: center;
-            padding: 1.5rem;
+            padding: 1.2rem 0.8rem;
+            border-radius: 0.5rem;
         }
         .stat-card h2 {
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.8rem;
             color: var(--pico-primary);
         }
         .stat-card p {
-            margin: 0.5rem 0 0;
+            margin: 0.3rem 0 0;
+            font-size: 0.85rem;
             color: var(--pico-muted-color);
         }
+
+        /* Badges */
         .badge {
             display: inline-block;
-            padding: 0.2rem 0.6rem;
+            padding: 0.15rem 0.55rem;
             border-radius: 1rem;
-            font-size: 0.8rem;
-            font-weight: bold;
+            font-size: 0.75rem;
+            font-weight: 600;
         }
         .badge-pending { background: #fef3cd; color: #856404; }
         .badge-confirmed { background: #d1ecf1; color: #0c5460; }
-        .badge-shipped { background: #d4edda; color: #155724; }
-        .badge-delivered { background: #c3e6cb; color: #155724; }
-        .badge-cancelled { background: #f8d7da; color: #721c24; }
+        .badge-shipped { background: #cfe2ff; color: #084298; }
+        .badge-delivered { background: #d1e7dd; color: #0f5132; }
+        .badge-cancelled { background: #f8d7da; color: #842029; }
         .badge-active { background: #d1ecf1; color: #0c5460; }
-        .badge-in_stock { background: #d4edda; color: #155724; }
-        .badge-out_of_stock { background: #f8d7da; color: #721c24; }
+        .badge-completed { background: #d1e7dd; color: #0f5132; }
+        .badge-failed { background: #f8d7da; color: #842029; }
+        .badge-crawling, .badge-indexing { background: #fff3cd; color: #664d03; }
+        .badge-in_stock { background: #d1e7dd; color: #0f5132; }
+        .badge-out_of_stock { background: #f8d7da; color: #842029; }
+        .badge-limited { background: #fff3cd; color: #664d03; }
+
+        /* Chat styles */
         .chat-container {
             max-height: 500px;
             overflow-y: auto;
@@ -63,66 +106,105 @@
             margin-bottom: 1rem;
             background: var(--pico-card-background-color);
         }
-        .chat-message {
-            margin-bottom: 1rem;
-            display: flex;
-        }
-        .chat-message.customer {
-            justify-content: flex-start;
-        }
-        .chat-message.assistant {
-            justify-content: flex-end;
-        }
+        .chat-message { margin-bottom: 0.8rem; display: flex; }
+        .chat-message.customer { justify-content: flex-start; }
+        .chat-message.assistant { justify-content: flex-end; }
         .chat-bubble {
-            max-width: 70%;
-            padding: 0.8rem 1rem;
+            max-width: 75%;
+            padding: 0.7rem 1rem;
             border-radius: 1rem;
-            line-height: 1.4;
-            white-space: pre-wrap;
+            line-height: 1.5;
         }
-        .customer .chat-bubble {
-            background: var(--pico-muted-border-color);
-        }
-        .assistant .chat-bubble {
-            background: var(--pico-primary);
-            color: var(--pico-primary-inverse);
-        }
-        .flash-message {
-            padding: 1rem;
-            margin-bottom: 1rem;
+        .customer .chat-bubble { background: #f1f5f9; color: #1e293b; }
+        .assistant .chat-bubble { background: #1a1a2e; color: #e2e8f0; }
+        .assistant .chat-bubble a { color: #93c5fd; }
+
+        /* Token usage bar */
+        .token-bar {
+            display: flex;
+            gap: 1.5rem;
+            padding: 0.6rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 0.5rem;
-            background: #d4edda;
-            color: #155724;
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 1rem;
         }
+        .token-bar .token-item { display: flex; align-items: center; gap: 0.3rem; }
+        .token-bar .token-value { font-weight: 600; color: #334155; }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .section-header h2, .section-header h3 { margin: 0; }
+
+        /* Flash messages */
+        .flash-success { padding: 0.8rem 1rem; border-radius: 0.4rem; background: #d1e7dd; color: #0f5132; margin-bottom: 1rem; }
+        .flash-error { padding: 0.8rem 1rem; border-radius: 0.4rem; background: #f8d7da; color: #842029; margin-bottom: 1rem; }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><strong><a href="/dashboard">Mama Sales Agent</a></strong></li>
-        </ul>
-        <ul>
-            {% if tenant_id %}
-            <li><a href="/dashboard/{{ tenant_id }}/chat">Test Chat</a></li>
-            <li><a href="/dashboard/{{ tenant_id }}/products">Products</a></li>
-            <li><a href="/dashboard/{{ tenant_id }}/orders">Orders</a></li>
-            <li><a href="/dashboard/{{ tenant_id }}/conversations">Conversations</a></li>
-            <li><a href="/dashboard/{{ tenant_id }}/crawl">Crawl</a></li>
-            <li><a href="/dashboard/{{ tenant_id }}/settings">Settings</a></li>
-            {% endif %}
-        </ul>
-    </nav>
+    <div class="top-nav">
+        <a href="/dashboard" class="brand">Mama Sales Agent</a>
+        {% if tenant_id %}
+        <div class="nav-links">
+            <a href="/dashboard/{{ tenant_id }}/chat" id="nav-chat">Chat</a>
+            <a href="/dashboard/{{ tenant_id }}/products" id="nav-products">Products</a>
+            <a href="/dashboard/{{ tenant_id }}/orders" id="nav-orders">Orders</a>
+            <a href="/dashboard/{{ tenant_id }}/conversations" id="nav-conversations">Conversations</a>
+            <a href="/dashboard/{{ tenant_id }}/crawl" id="nav-crawl">Crawl</a>
+            <a href="/dashboard/{{ tenant_id }}/settings" id="nav-settings">Settings</a>
+        </div>
+        {% endif %}
+        <div class="nav-right">
+            <span class="user-badge" id="user-email"></span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
 
-    <main class="container">
+    <!-- Auth guard — runs before page content scripts -->
+    <script>
+    const token = localStorage.getItem('token');
+    if (!token && !window.location.pathname.includes('/login')) {
+        window.location.href = '/dashboard/login';
+    }
+    </script>
+
+    <main class="container" style="padding-top: 1.5rem;">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="container">
+    <footer class="container" style="padding-bottom: 1rem;">
         <hr>
-        <p><small>Mama Sales Agent v0.1.0 | AI-powered sales for Bangladeshi businesses</small></p>
+        <p style="text-align:center;"><small>Mama Sales Agent v0.1.0 | AI-powered sales for Bangladeshi businesses</small></p>
     </footer>
 
+    <script>
+    // User info display
+    if (token) {
+        fetch('/api/auth/me', {headers: {'Authorization': 'Bearer ' + token}})
+            .then(r => {
+                if (!r.ok) { localStorage.removeItem('token'); window.location.href = '/dashboard/login'; return; }
+                return r.json();
+            })
+            .then(u => { if (u) document.getElementById('user-email').textContent = u.email; })
+            .catch(() => {});
+    }
+    function logout() {
+        localStorage.removeItem('token');
+        window.location.href = '/dashboard/login';
+    }
+    // Highlight active nav link
+    document.querySelectorAll('.nav-links a').forEach(a => {
+        if (window.location.pathname === new URL(a.href, location.origin).pathname) a.classList.add('active');
+    });
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
