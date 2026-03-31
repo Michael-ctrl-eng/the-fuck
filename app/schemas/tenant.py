@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -31,10 +32,14 @@ class TenantCreate(BaseModel):
 class TenantUpdate(BaseModel):
     page_name: str | None = None
     page_access_token: str | None = None
+    fb_page_id: str | None = None
     website_url: str | None = None
     business_phone: str | None = None
     business_email: str | None = None
     notification_pref: str | None = None
+    delivery_inside_dhaka: Decimal | None = None
+    delivery_outside_dhaka: Decimal | None = None
+    free_delivery_above: Decimal | None = None
 
 
 class TenantResponse(BaseModel):
@@ -45,6 +50,9 @@ class TenantResponse(BaseModel):
     business_phone: str | None
     business_email: str | None
     notification_pref: str
+    delivery_inside_dhaka: Decimal | None = None
+    delivery_outside_dhaka: Decimal | None = None
+    free_delivery_above: Decimal | None = None
     is_active: bool
     created_at: datetime
 

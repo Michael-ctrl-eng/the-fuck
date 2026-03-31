@@ -1,16 +1,16 @@
-"""Retrieve relevant info from PageIndex tree using LLM reasoning.
+"""Retrieve products and knowledge from PageIndex tree using LLM navigation.
 
-Uses the PageIndex self-hosted retrieval tools:
-1. get_document_structure() — tree TOC (titles + summaries, no full text)
-2. get_page_content(pages) — fetch specific sections by line number
+The LLM reads the tree TOC (titles + summaries — small, ~200 tokens)
+and picks which nodes to fetch. This handles:
+- Bangla, Banglish, English queries
+- Typos and spelling variations
+- Synonyms (atta = flour = গমের আটা)
 
-The LLM reads the tree structure and decides which sections to fetch.
-This is much cheaper than sending all content — the tree TOC is small.
+Cost: ~50-100 tokens for TOC navigation (just returns node numbers)
 """
 import json
 import logging
-import os
-import sys
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,24 +19,19 @@ from app.models.knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
-# Add PageIndex lib to path
-PAGEINDEX_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "lib", "pageindex")
-if PAGEINDEX_DIR not in sys.path:
-    sys.path.insert(0, PAGEINDEX_DIR)
 
-
-async def retrieve_relevant_info(
+async def retrieve_context(
     db: AsyncSession,
     tenant_id,
     query: str,
-    max_results: int = 3,
-) -> str:
-    """Use PageIndex tree to find and retrieve relevant content.
+    max_nodes: int = 3,
+) -> tuple[str, str]:
+    """Retrieve relevant products AND knowledge from PageIndex tree.
 
-    Two-step process:
-    1. Get tree structure (titles + summaries) — small, cheap
-    2. Ask LLM which sections are relevant — one focused call
-    3. Fetch those sections' text
+    Returns (products_context, knowledge_context) — both as formatted strings.
+    The LLM navigates the tree TOC to find relevant nodes.
+
+    Cost: ~50-100 tokens (TOC + node selection).
     """
     result = await db.execute(
         select(KnowledgeBase).where(KnowledgeBase.tenant_id == tenant_id)
@@ -44,137 +39,129 @@ async def retrieve_relevant_info(
     kb = result.scalar_one_or_none()
 
     if not kb or not kb.tree_json:
-        return ""
+        return "", ""
 
     storage = kb.tree_json
 
-    # Get the PageIndex tree
+    # Get tree structure
     if storage.get("type") == "pageindex":
         tree_data = storage.get("tree", {})
         structure = tree_data.get("structure", [])
     else:
-        # Legacy format
         structure = storage.get("children", storage.get("structure", []))
 
     if not structure:
-        return ""
+        return "", ""
 
-    # Build a compact TOC from the tree (titles + summaries only — no text)
-    toc = _build_toc_from_tree(structure)
-
+    # Build compact TOC (titles + summaries only — no full text)
+    toc = _build_toc(structure)
     if not toc:
-        return ""
+        return "", ""
 
-    # Use LLM to pick relevant sections from the TOC
+    # Ask LLM which nodes are relevant
+    selected_ids = await _select_nodes(toc, query, max_nodes)
+
+    if not selected_ids:
+        return "", ""
+
+    # Fetch content from selected nodes
+    products_text, knowledge_text = _extract_content(structure, selected_ids)
+
+    return products_text, knowledge_text
+
+
+async def _select_nodes(toc: str, query: str, max_nodes: int) -> list[str]:
+    """Ask LLM to pick relevant nodes from the TOC. Cost: ~50 tokens."""
     try:
         from app.ai.llm_client import chat_completion
-        import re
 
-        prompt = f"""Given a customer question about a business, pick the most relevant sections from the knowledge base table of contents below.
+        prompt = f"""Pick the most relevant sections for this customer query. Return ONLY a JSON array of node IDs.
 
-Customer question: "{query}"
+Query: "{query}"
 
-Knowledge base sections:
+Sections:
 {toc}
 
-Return ONLY a JSON array of the line numbers of the {max_results} most relevant sections, e.g. [5, 12, 28].
-If no sections are relevant, return [].
-Return ONLY the JSON array."""
+Return [{max_nodes} most relevant node IDs], e.g. ["0001","0005","0003"]. ONLY the JSON array."""
 
         response = await chat_completion(
             [{"role": "user", "content": prompt}],
             temperature=0.0,
-            max_tokens=50,  # Very small — just a JSON array
+            max_tokens=50,
         )
 
-        # Parse line numbers
-        match = re.search(r'\[[\d,\s]*\]', response)
-        if not match:
-            return _fallback_text(structure)
-
-        line_nums = json.loads(match.group())
-        if not line_nums:
-            return ""
-
-        # Fetch content for those line numbers from the tree
-        return _get_content_by_line_nums(structure, line_nums)
+        match = re.search(r'\[.*?\]', response)
+        if match:
+            ids = json.loads(match.group())
+            return [str(i).zfill(4) if isinstance(i, int) else str(i) for i in ids]
 
     except Exception as e:
-        logger.warning(f"PageIndex retrieval failed: {e}")
-        return _fallback_text(structure)
+        logger.warning(f"PageIndex node selection failed: {e}")
+
+    return []
 
 
-def _build_toc_from_tree(nodes: list, indent: int = 0) -> str:
-    """Build a compact table of contents from PageIndex tree.
-
-    Shows title, line_num, and summary — NOT full text.
-    This is very compact (few hundred tokens for 30 pages).
-    """
+def _build_toc(nodes: list, indent: int = 0) -> str:
+    """Build compact TOC from tree. Shows node_id, title, summary."""
     lines = []
     for node in nodes:
         if not isinstance(node, dict):
             continue
 
+        nid = node.get("node_id", "?")
         title = node.get("title", "")
-        line_num = node.get("line_num", "")
         summary = node.get("summary", node.get("prefix_summary", ""))
+        ntype = node.get("_type", "")
 
         prefix = "  " * indent
-        entry = f"{prefix}- [{line_num}] {title}"
+        tag = "[P]" if "product" in ntype else "[K]"
+        entry = f"{prefix}{tag} [{nid}] {title}"
         if summary:
-            entry += f" — {summary[:120]}"
+            entry += f" — {summary[:100]}"
         lines.append(entry)
 
-        # Recurse into children
         children = node.get("nodes", [])
         if children:
-            lines.append(_build_toc_from_tree(children, indent + 1))
+            lines.append(_build_toc(children, indent + 1))
 
     return "\n".join(lines)
 
 
-def _get_content_by_line_nums(nodes: list, line_nums: list[int]) -> str:
-    """Traverse tree and extract text for nodes matching the line numbers."""
-    parts = []
-    target_set = set(line_nums)
+def _extract_content(nodes: list, selected_ids: list[str]) -> tuple[str, str]:
+    """Extract text from selected nodes, separating products from knowledge."""
+    target_set = set(selected_ids)
+    product_parts = []
+    knowledge_parts = []
 
     def _traverse(node_list):
         for node in node_list:
             if not isinstance(node, dict):
                 continue
-            ln = node.get("line_num")
-            if ln and ln in target_set:
+
+            nid = node.get("node_id", "")
+            if nid in target_set:
+                text = node.get("text", "")
                 title = node.get("title", "")
-                text = node.get("text", node.get("content", node.get("raw_content", "")))
-                if title:
-                    parts.append(f"## {title}")
-                if text:
-                    parts.append(text[:800])
+                ntype = node.get("_type", "")
+
+                # If this is a category node, format each child product clearly
+                children = node.get("nodes", [])
+                if children and "product" in ntype:
+                    for child in children:
+                        ct = child.get("text", "")
+                        if ct:
+                            product_parts.append(ct)
+                elif "product" in ntype:
+                    product_parts.append(text)
+                else:
+                    content = f"## {title}\n{text}" if title else text
+                    knowledge_parts.append(content[:500])
+
+            # Also check children directly
             children = node.get("nodes", [])
             if children:
                 _traverse(children)
 
     _traverse(nodes)
-    return "\n\n".join(parts).strip()
 
-
-def _fallback_text(nodes: list) -> str:
-    """Return first few sections as fallback."""
-    parts = []
-    flat = _flatten(nodes)
-    for node in flat[:3]:
-        text = node.get("text", node.get("content", ""))
-        if text:
-            parts.append(text[:500])
-    return "\n\n".join(parts)
-
-
-def _flatten(nodes: list) -> list[dict]:
-    """Flatten tree into list."""
-    flat = []
-    for node in nodes:
-        if isinstance(node, dict):
-            flat.append({k: v for k, v in node.items() if k != "nodes"})
-            if node.get("nodes"):
-                flat.extend(_flatten(node["nodes"]))
-    return flat
+    return "\n\n---\n\n".join(product_parts), "\n\n".join(knowledge_parts)

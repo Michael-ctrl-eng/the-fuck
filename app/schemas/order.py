@@ -25,6 +25,8 @@ class OrderResponse(BaseModel):
     upazila: str | None
     address_detail: str
     payment_method: str
+    payment_phone_last2: str | None = None
+    payment_trx_id: str | None = None
     subtotal: Decimal
     delivery_charge: Decimal
     total: Decimal

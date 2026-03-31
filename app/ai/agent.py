@@ -12,13 +12,12 @@ from sqlalchemy.orm import selectinload
 from app.ai.language import detect_language
 from app.ai.llm_client import chat_completion_with_usage
 from app.ai.order_collector import clean_response_for_customer, extract_order_from_response
-from app.ai.prompts import get_product_context, get_system_prompt
-from app.knowledge.retriever import retrieve_relevant_info
+from app.ai.prompts import get_system_prompt
+from app.knowledge.retriever import retrieve_context
 from app.models.conversation import Conversation
 from app.models.customer import Customer
 from app.models.message import Message
 from app.models.tenant import Tenant
-from app.services.product_service import search_relevant_products
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +55,26 @@ async def process_customer_message(
     # 4. Load conversation history
     history = await _load_conversation_history(db, conversation.id)
 
-    # 5. Get relevant products (not all — keeps prompt small)
-    products = await search_relevant_products(db, tenant.id, message_text, max_results=8)
-    products_context = get_product_context(products)
+    # 5. Retrieve relevant products + knowledge from PageIndex tree
+    # LLM reads tree TOC → picks relevant nodes → fetches content
+    # Handles Bangla, Banglish, English, typos, synonyms
+    # Cost: ~50 tokens for TOC navigation
+    products_context, knowledge_context = await retrieve_context(
+        db, tenant.id, message_text, max_nodes=3
+    )
 
-    # 6. Retrieve relevant knowledge base info (zero extra LLM cost for small KBs)
-    knowledge_context = await retrieve_relevant_info(db, tenant.id, message_text, max_results=3)
-
-    # 7. Detect language
+    # 6. Detect language
     lang = detect_language(message_text)
 
-    # 8. Build system prompt
+    # 7. Build system prompt with tenant's delivery settings
     system_prompt = get_system_prompt(
         business_name=tenant.page_name,
         products_context=products_context,
         knowledge_context=knowledge_context,
         language_hint=lang,
+        delivery_inside=float(tenant.delivery_inside_dhaka or 80),
+        delivery_outside=float(tenant.delivery_outside_dhaka or 150),
+        free_delivery_above=float(tenant.free_delivery_above) if tenant.free_delivery_above else None,
     )
 
     # 9. Build messages for LLM
@@ -94,7 +97,7 @@ async def process_customer_message(
     # 11. Check for order data in response
     order_data = extract_order_from_response(raw_response)
     if order_data:
-        await _create_order_from_data(db, tenant, customer, conversation, order_data, products)
+        await _create_order_from_data(db, tenant, customer, conversation, order_data)
         conversation.status = "order_placed"
 
     # 12. Clean response (remove JSON blocks)
@@ -207,26 +210,33 @@ async def _create_order_from_data(
     customer: Customer,
     conversation: Conversation,
     order_data: dict,
-    products: list[dict],
 ) -> None:
     """Create an order from extracted AI data."""
     from app.services.order_service import create_order
     from app.services.notification_service import notify_new_order
+    from app.models.product import Product
 
-    # Find matching product for price
+    # Find matching product in DB for price
     product_name = order_data["product_name"]
-    matching_product = None
-    for p in products:
-        if p["name"].lower() in product_name.lower() or product_name.lower() in p["name"].lower():
-            matching_product = p
-            break
+    result = await db.execute(
+        select(Product).where(
+            Product.tenant_id == tenant.id,
+            Product.is_active == True,
+            Product.name.ilike(f"%{product_name}%"),
+        ).limit(1)
+    )
+    matching = result.scalar_one_or_none()
 
-    unit_price = matching_product["discount_price"] or matching_product["price"] if matching_product else 0
+    if matching:
+        attrs = matching.attributes or {}
+        unit_price = attrs.get("discount_price") or matching.price
+    else:
+        unit_price = 0
     quantity = order_data.get("quantity", 1)
 
     items = [
         {
-            "product_id": matching_product["id"] if matching_product else None,
+            "product_id": str(matching.id) if matching else None,
             "product_name": product_name,
             "quantity": quantity,
             "unit_price": unit_price,
@@ -255,6 +265,7 @@ async def _create_order_from_data(
             address_detail=order_data["address_detail"],
             payment_method=order_data.get("payment_method", "cod"),
             items=items,
+            delivery_charge=_calc_delivery(tenant, order_data.get("division", ""), items, matching),
         )
         logger.info(f"Order {order.order_number} created for tenant {tenant.page_name}")
 
@@ -266,6 +277,30 @@ async def _create_order_from_data(
 
     except Exception as e:
         logger.error(f"Failed to create order: {e}")
+
+
+def _calc_delivery(tenant: Tenant, division: str, items: list[dict], product=None) -> Decimal:
+    """Calculate delivery charge from tenant settings + product overrides."""
+    from decimal import Decimal
+
+    # Check product-level override
+    if product and product.attributes:
+        prod_delivery = product.attributes.get("delivery_charge")
+        if prod_delivery is not None:
+            return Decimal(str(prod_delivery))
+        if product.attributes.get("free_delivery"):
+            return Decimal("0")
+
+    # Calculate subtotal for free delivery check
+    subtotal = sum(Decimal(str(i.get("unit_price", 0))) * i.get("quantity", 1) for i in items)
+    if tenant.free_delivery_above and subtotal >= tenant.free_delivery_above:
+        return Decimal("0")
+
+    # Zone-based from tenant settings
+    is_dhaka = division.lower() in ("dhaka", "ঢাকা")
+    if is_dhaka:
+        return Decimal(str(tenant.delivery_inside_dhaka or 80))
+    return Decimal(str(tenant.delivery_outside_dhaka or 150))
 
 
 def _get_fallback_response(language: str) -> str:

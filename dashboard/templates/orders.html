@@ -253,7 +253,7 @@ async function loadOrders() {
     container.innerHTML = `
         <table>
             <thead>
-                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Location</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 ${data.orders.map(o => `
@@ -261,7 +261,9 @@ async function loadOrders() {
                         <td><a href="#" onclick="showOrder('${o.id}'); return false;">${o.order_number}</a></td>
                         <td>${o.customer_name}</td>
                         <td>${o.customer_phone}</td>
+                        <td style="font-size:0.8rem;">${[o.district, o.division].filter(Boolean).join(', ')}</td>
                         <td>৳${o.total}</td>
+                        <td style="font-size:0.8rem;">${o.payment_method.toUpperCase()}${o.payment_phone_last2 ? ' ('+o.payment_phone_last2+')' : ''}</td>
                         <td><span class="badge badge-${o.status}">${o.status}</span></td>
                         <td style="font-size:0.85rem;">${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
                         <td style="white-space:nowrap;">
@@ -284,14 +286,41 @@ async function showOrder(id) {
     currentOrderId = id;
     document.getElementById('order-title').textContent = `Order ${o.order_number}`;
     document.getElementById('order-notes').value = o.notes || '';
+    const paymentInfo = o.payment_method !== 'cod'
+        ? `<tr><td><strong>MFS Number (last 2)</strong></td><td>${o.payment_phone_last2 || '<em>Not provided</em>'}</td></tr>
+           <tr><td><strong>Transaction ID</strong></td><td>${o.payment_trx_id || '<em>Not provided</em>'}</td></tr>`
+        : '';
+
     document.getElementById('order-detail').innerHTML = `
         <table>
             <tr><td><strong>Customer</strong></td><td>${o.customer_name}</td></tr>
             <tr><td><strong>Phone</strong></td><td>${o.customer_phone}</td></tr>
-            <tr><td><strong>Address</strong></td><td>${[o.address_detail, o.upazila, o.district, o.division].filter(Boolean).join(', ')}</td></tr>
+            <tr><td><strong>Division</strong></td><td>${o.division}</td></tr>
+            <tr><td><strong>District</strong></td><td>${o.district}</td></tr>
+            <tr><td><strong>Upazila</strong></td><td>${o.upazila || '-'}</td></tr>
+            <tr><td><strong>Address</strong></td><td>${o.address_detail}</td></tr>
             <tr><td><strong>Payment</strong></td><td>${o.payment_method.toUpperCase()}</td></tr>
+            ${paymentInfo}
             <tr><td><strong>Status</strong></td><td><span class="badge badge-${o.status}">${o.status}</span></td></tr>
         </table>
+
+        ${o.payment_method !== 'cod' ? `
+        <h4>Payment Verification</h4>
+        <div class="grid">
+            <div>
+                <label>MFS Last 2 Digits</label>
+                <input type="text" id="pay-last2" value="${o.payment_phone_last2 || ''}" placeholder="e.g. 78" maxlength="4">
+            </div>
+            <div>
+                <label>Transaction ID</label>
+                <input type="text" id="pay-trxid" value="${o.payment_trx_id || ''}" placeholder="e.g. ABC123XYZ">
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+                <button class="outline" style="padding:0.3rem 0.7rem;" onclick="savePaymentInfo('${o.id}')">Save</button>
+            </div>
+        </div>
+        ` : ''}
+
         <h4>Items</h4>
         <table>
             <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
@@ -333,6 +362,20 @@ async function confirmCancel() {
     });
     document.getElementById('cancel-modal').close();
     loadOrders();
+}
+
+async function savePaymentInfo(orderId) {
+    const body = {};
+    const last2 = document.getElementById('pay-last2')?.value?.trim();
+    const trxid = document.getElementById('pay-trxid')?.value?.trim();
+    if (last2) body.payment_phone_last2 = last2;
+    if (trxid) body.payment_trx_id = trxid;
+    if (!Object.keys(body).length) return;
+
+    const resp = await fetch(`/api/tenants/${tenantId}/orders/${orderId}/payment`, {
+        method: 'PATCH', headers, body: JSON.stringify(body)
+    });
+    if (resp.ok) alert('Payment info saved');
 }
 
 function exportCSV() {

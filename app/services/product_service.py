@@ -36,6 +36,10 @@ async def create_product(
     )
     db.add(product)
     await db.flush()
+
+    # Sync product tree (zero LLM cost)
+    await _sync_product_tree(db, tenant_id)
+
     return product
 
 
@@ -131,12 +135,19 @@ async def update_product(db: AsyncSession, product: Product, **kwargs) -> Produc
 
     product.attributes = new_attrs
     await db.flush()
+
+    # Sync product tree (zero LLM cost)
+    await _sync_product_tree(db, product.tenant_id)
+
     return product
 
 
 async def delete_product(db: AsyncSession, product: Product) -> None:
     product.is_active = False
     await db.flush()
+
+    # Sync product tree (zero LLM cost)
+    await _sync_product_tree(db, product.tenant_id)
 
 
 async def import_csv(
@@ -338,3 +349,13 @@ async def search_relevant_products(
         return diverse
 
     return [pd for _, pd in scored[:max_results]]
+
+
+async def _sync_product_tree(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Rebuild the product section of PageIndex tree. Zero LLM cost."""
+    try:
+        from app.knowledge.tree_sync import rebuild_product_tree
+        await rebuild_product_tree(db, tenant_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Product tree sync failed: {e}")

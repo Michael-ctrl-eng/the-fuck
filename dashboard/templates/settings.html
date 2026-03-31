@@ -53,6 +53,33 @@
     </form>
 </article>
 
+<!-- Delivery Charges -->
+<article>
+    <header><h3>Delivery Charges</h3></header>
+    <p><small>Set default delivery charges. These are used by the AI chatbot and for order calculation. Individual products can override these if they have a <code>delivery_charge</code> attribute.</small></p>
+    <form id="delivery-form">
+        <div class="grid">
+            <div>
+                <label>Inside Dhaka (৳)</label>
+                <input type="number" id="delivery_inside_dhaka" step="1" placeholder="80">
+            </div>
+            <div>
+                <label>Outside Dhaka (৳)</label>
+                <input type="number" id="delivery_outside_dhaka" step="1" placeholder="150">
+            </div>
+            <div>
+                <label>Free Delivery Above (৳)</label>
+                <input type="number" id="free_delivery_above" step="1" placeholder="e.g. 2000 (leave empty = no free delivery)">
+            </div>
+        </div>
+        <p><small>
+            <strong>How it works:</strong> AI tells customers the delivery charge based on their division. If order total exceeds "Free Delivery Above", delivery is free.
+            For heavy/special products, add <code>delivery_charge</code> attribute on the product to override.
+        </small></p>
+        <button type="submit">Save Delivery Settings</button>
+    </form>
+</article>
+
 <!-- Facebook Integration -->
 <article>
     <header><h3>Facebook Page Integration</h3></header>
@@ -110,6 +137,9 @@ async function loadSettings() {
     document.getElementById('business_phone').value = t.business_phone || '';
     document.getElementById('fb_page_id').value = t.fb_page_id || '';
     document.getElementById('notification_pref').value = t.notification_pref || 'email';
+    document.getElementById('delivery_inside_dhaka').value = t.delivery_inside_dhaka || 80;
+    document.getElementById('delivery_outside_dhaka').value = t.delivery_outside_dhaka || 150;
+    document.getElementById('free_delivery_above').value = t.free_delivery_above || '';
 
     // FB connection status
     if (t.fb_page_id) {
@@ -201,6 +231,17 @@ async function deleteCrawledProducts() {
     alert(`Deleted ${crawled.length} crawled products.`);
     loadStats();
 }
+
+document.getElementById('delivery-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        delivery_inside_dhaka: parseFloat(document.getElementById('delivery_inside_dhaka').value) || 80,
+        delivery_outside_dhaka: parseFloat(document.getElementById('delivery_outside_dhaka').value) || 150,
+        free_delivery_above: parseFloat(document.getElementById('free_delivery_above').value) || null,
+    };
+    const resp = await fetch(`/api/tenants/${tenantId}`, {method: 'PATCH', headers, body: JSON.stringify(body)});
+    if (resp.ok) alert('Delivery settings saved!');
+});
 
 loadSettings();
 loadStats();

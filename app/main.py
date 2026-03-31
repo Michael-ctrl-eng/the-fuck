@@ -29,6 +29,19 @@ async def lifespan(app: FastAPI):
                 )
             """))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_token_usage_tenant ON token_usage(tenant_id)"))
+            # Add missing columns (idempotent)
+            migrations = [
+                ("orders", "payment_phone_last2", "VARCHAR(10)"),
+                ("orders", "payment_trx_id", "VARCHAR(50)"),
+                ("tenants", "delivery_inside_dhaka", "NUMERIC(10,2) DEFAULT 80"),
+                ("tenants", "delivery_outside_dhaka", "NUMERIC(10,2) DEFAULT 150"),
+                ("tenants", "free_delivery_above", "NUMERIC(10,2)"),
+            ]
+            for table, col, coltype in migrations:
+                try:
+                    await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}"))
+                except Exception:
+                    pass
     except Exception:
         pass  # DB may not be ready yet
     yield

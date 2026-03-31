@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 # Models that don't support system role — convert to user message
 NO_SYSTEM_ROLE = {"google/gemma", "gemma-3"}
 
-# Fallback free models — max 3 to avoid long waits
+# Fallback models — cheap paid first, then free
 FALLBACK_MODELS = [
+    "google/gemini-2.0-flash-001",
+    "qwen/qwen-2.5-72b-instruct",
     "arcee-ai/trinity-large-preview:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-27b-it:free",
 ]
 
 

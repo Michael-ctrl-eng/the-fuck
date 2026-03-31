@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import ForeignKey, String, Text, Boolean
+from sqlalchemy import ForeignKey, String, Text, Boolean, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,6 +21,9 @@ class Tenant(Base):
     business_phone: Mapped[Optional[str]] = mapped_column(String(20))
     business_email: Mapped[Optional[str]] = mapped_column(String(255))
     notification_pref: Mapped[str] = mapped_column(String(20), default="email")
+    delivery_inside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=80)
+    delivery_outside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=150)
+    free_delivery_above: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(

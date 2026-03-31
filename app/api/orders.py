@@ -16,6 +16,28 @@ from app.services import order_service
 router = APIRouter(prefix="/api/tenants/{tenant_id}/orders", tags=["Orders"])
 
 
+def _order_response(o) -> OrderResponse:
+    return OrderResponse(
+        id=str(o.id), order_number=o.order_number,
+        customer_name=o.customer_name, customer_phone=o.customer_phone,
+        division=o.division, district=o.district, upazila=o.upazila,
+        address_detail=o.address_detail, payment_method=o.payment_method,
+        payment_phone_last2=o.payment_phone_last2,
+        payment_trx_id=o.payment_trx_id,
+        subtotal=o.subtotal, delivery_charge=o.delivery_charge,
+        total=o.total, status=o.status, notes=o.notes,
+        created_at=o.created_at,
+        items=[
+            OrderItemResponse(
+                id=str(item.id), product_name=item.product_name,
+                quantity=item.quantity, unit_price=item.unit_price,
+                total_price=item.total_price,
+            )
+            for item in o.items
+        ],
+    )
+
+
 @router.post("", response_model=OrderResponse, status_code=201)
 async def create_manual_order(
     req: ManualOrderCreate,
@@ -50,7 +72,6 @@ async def create_manual_order(
         db.add(customer)
         await db.flush()
     else:
-        # Update customer info
         customer.name = req.customer_name
         customer.division = req.division
         customer.district = req.district
@@ -83,23 +104,7 @@ async def create_manual_order(
         notes=req.notes,
     )
 
-    return OrderResponse(
-        id=str(order.id), order_number=order.order_number,
-        customer_name=order.customer_name, customer_phone=order.customer_phone,
-        division=order.division, district=order.district, upazila=order.upazila,
-        address_detail=order.address_detail, payment_method=order.payment_method,
-        subtotal=order.subtotal, delivery_charge=order.delivery_charge,
-        total=order.total, status=order.status, notes=order.notes,
-        created_at=order.created_at,
-        items=[
-            OrderItemResponse(
-                id=str(item.id), product_name=item.product_name,
-                quantity=item.quantity, unit_price=item.unit_price,
-                total_price=item.total_price,
-            )
-            for item in order.items
-        ],
-    )
+    return _order_response(order)
 
 
 @router.get("", response_model=OrderListResponse)
@@ -114,29 +119,8 @@ async def list_orders(
         db, tenant.id, page, page_size, status
     )
     return OrderListResponse(
-        orders=[
-            OrderResponse(
-                id=str(o.id), order_number=o.order_number,
-                customer_name=o.customer_name, customer_phone=o.customer_phone,
-                division=o.division, district=o.district, upazila=o.upazila,
-                address_detail=o.address_detail, payment_method=o.payment_method,
-                subtotal=o.subtotal, delivery_charge=o.delivery_charge,
-                total=o.total, status=o.status, notes=o.notes,
-                created_at=o.created_at,
-                items=[
-                    OrderItemResponse(
-                        id=str(item.id), product_name=item.product_name,
-                        quantity=item.quantity, unit_price=item.unit_price,
-                        total_price=item.total_price,
-                    )
-                    for item in o.items
-                ],
-            )
-            for o in orders
-        ],
-        total=total,
-        page=page,
-        page_size=page_size,
+        orders=[_order_response(o) for o in orders],
+        total=total, page=page, page_size=page_size,
     )
 
 
@@ -149,23 +133,7 @@ async def get_order(
     order = await order_service.get_order_by_id(db, tenant.id, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return OrderResponse(
-        id=str(order.id), order_number=order.order_number,
-        customer_name=order.customer_name, customer_phone=order.customer_phone,
-        division=order.division, district=order.district, upazila=order.upazila,
-        address_detail=order.address_detail, payment_method=order.payment_method,
-        subtotal=order.subtotal, delivery_charge=order.delivery_charge,
-        total=order.total, status=order.status, notes=order.notes,
-        created_at=order.created_at,
-        items=[
-            OrderItemResponse(
-                id=str(item.id), product_name=item.product_name,
-                quantity=item.quantity, unit_price=item.unit_price,
-                total_price=item.total_price,
-            )
-            for item in order.items
-        ],
-    )
+    return _order_response(order)
 
 
 @router.patch("/{order_id}/status", response_model=OrderResponse)
@@ -183,29 +151,12 @@ async def update_status(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Save notes if provided (e.g. cancellation reason)
     if req.notes:
         existing = updated.notes or ""
         updated.notes = f"{existing}\n[{req.status}] {req.notes}".strip()
         await db.flush()
 
-    return OrderResponse(
-        id=str(updated.id), order_number=updated.order_number,
-        customer_name=updated.customer_name, customer_phone=updated.customer_phone,
-        division=updated.division, district=updated.district, upazila=updated.upazila,
-        address_detail=updated.address_detail, payment_method=updated.payment_method,
-        subtotal=updated.subtotal, delivery_charge=updated.delivery_charge,
-        total=updated.total, status=updated.status, notes=updated.notes,
-        created_at=updated.created_at,
-        items=[
-            OrderItemResponse(
-                id=str(item.id), product_name=item.product_name,
-                quantity=item.quantity, unit_price=item.unit_price,
-                total_price=item.total_price,
-            )
-            for item in updated.items
-        ],
-    )
+    return _order_response(updated)
 
 
 @router.patch("/{order_id}/notes")
@@ -219,5 +170,26 @@ async def update_notes(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     order.notes = req.notes
+    await db.flush()
+    return {"status": "updated"}
+
+
+@router.patch("/{order_id}/payment")
+async def update_payment_info(
+    order_id: uuid.UUID,
+    req: dict,
+    tenant=Depends(get_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update payment verification info (bKash/Nagad last 2 digits or trx ID)."""
+    order = await order_service.get_order_by_id(db, tenant.id, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if req.get("payment_phone_last2"):
+        order.payment_phone_last2 = req["payment_phone_last2"]
+    if req.get("payment_trx_id"):
+        order.payment_trx_id = req["payment_trx_id"]
+    if req.get("payment_method"):
+        order.payment_method = req["payment_method"]
     await db.flush()
     return {"status": "updated"}
