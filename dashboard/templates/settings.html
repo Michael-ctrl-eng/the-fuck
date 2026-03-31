@@ -83,7 +83,9 @@
 <!-- MFS Payment Numbers -->
 <article>
     <header><h3>Mobile Payment Numbers (bKash/Nagad/Rocket)</h3></header>
-    <p><small>Add your mobile payment numbers. The AI chatbot will share these with customers when they choose bKash/Nagad/Rocket payment.</small></p>
+    <p><small>Add your mobile payment numbers with account type. The AI chatbot will instruct customers correctly based on account type:
+        <strong>Personal</strong> = Send Money, <strong>Merchant</strong> = Payment, <strong>Agent</strong> = Cash Out.
+    </small></p>
     <form id="mfs-form">
         <div class="grid">
             <div>
@@ -91,12 +93,43 @@
                 <input type="text" id="mfs_bkash" placeholder="01XXXXXXXXX">
             </div>
             <div>
+                <label>bKash Account Type</label>
+                <select id="mfs_bkash_type">
+                    <option value="">Not set</option>
+                    <option value="personal">Personal (Send Money)</option>
+                    <option value="merchant">Merchant (Payment)</option>
+                    <option value="agent">Agent (Cash Out)</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid">
+            <div>
                 <label>Nagad Number</label>
                 <input type="text" id="mfs_nagad" placeholder="01XXXXXXXXX">
             </div>
             <div>
+                <label>Nagad Account Type</label>
+                <select id="mfs_nagad_type">
+                    <option value="">Not set</option>
+                    <option value="personal">Personal (Send Money)</option>
+                    <option value="merchant">Merchant (Payment)</option>
+                    <option value="agent">Agent (Cash Out)</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid">
+            <div>
                 <label>Rocket Number</label>
                 <input type="text" id="mfs_rocket" placeholder="01XXXXXXXXX">
+            </div>
+            <div>
+                <label>Rocket Account Type</label>
+                <select id="mfs_rocket_type">
+                    <option value="">Not set</option>
+                    <option value="personal">Personal (Send Money)</option>
+                    <option value="merchant">Merchant (Payment)</option>
+                    <option value="agent">Agent (Cash Out)</option>
+                </select>
             </div>
         </div>
         <button type="submit">Save Payment Numbers</button>
@@ -165,8 +198,11 @@ async function loadSettings() {
     document.getElementById('free_delivery_above').value = t.free_delivery_above || '';
     const mfs = t.mfs_numbers || {};
     document.getElementById('mfs_bkash').value = mfs.bkash || '';
+    document.getElementById('mfs_bkash_type').value = mfs.bkash_type || '';
     document.getElementById('mfs_nagad').value = mfs.nagad || '';
+    document.getElementById('mfs_nagad_type').value = mfs.nagad_type || '';
     document.getElementById('mfs_rocket').value = mfs.rocket || '';
+    document.getElementById('mfs_rocket_type').value = mfs.rocket_type || '';
 
     // FB connection status
     if (t.fb_page_id) {
