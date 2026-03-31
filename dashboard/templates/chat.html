@@ -4,20 +4,24 @@
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-    .chat-container { max-height: 60vh; }
+    .chat-container { max-height: 60vh; background: #fff; border: 1px solid #e2e8f0; }
     .assistant .chat-bubble { white-space: normal; }
-    .assistant .chat-bubble h1, .assistant .chat-bubble h2, .assistant .chat-bubble h3,
-    .assistant .chat-bubble h4 { margin: 0.5rem 0 0.3rem; font-size: 1rem; color: #93c5fd; }
+    .assistant .chat-bubble ol, .assistant .chat-bubble ul {
+        display: block; margin: 0.4rem 0; padding-left: 1.5rem; list-style-position: outside;
+    }
+    .assistant .chat-bubble ol { list-style-type: decimal; }
+    .assistant .chat-bubble ul { list-style-type: disc; }
+    .assistant .chat-bubble li { display: list-item; margin: 0.2rem 0; }
     .assistant .chat-bubble p { margin: 0.3rem 0; }
-    .assistant .chat-bubble ul, .assistant .chat-bubble ol { margin: 0.3rem 0; padding-left: 1.2rem; }
-    .assistant .chat-bubble strong { color: #e2e8f0; }
-    .assistant .chat-bubble code { background: rgba(255,255,255,0.1); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
-    .chat-meta { font-size: 0.7rem; color: #94a3b8; margin-top: 0.3rem; text-align: right; }
-    .customer .chat-meta { text-align: left; }
+    .assistant .chat-bubble br { display: block; margin: 0.2rem 0; }
+    .chat-meta { font-size: 0.7rem; color: #94a3b8; margin-top: 0.3rem; }
+    .customer .chat-meta { text-align: right; }
+    .assistant .chat-meta { text-align: left; }
     .chat-input-row { display: flex; gap: 0.5rem; align-items: center; }
     .chat-input-row input { flex: 1; margin: 0; }
-    .chat-input-row button { width: auto; margin: 0; }
-    .chat-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .chat-input-row button { width: auto; margin: 0; background: #1e40af; }
+    .chat-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .chat-actions button { font-size: 0.8rem; padding: 0.2rem 0.6rem; }
     #session-tokens { font-size: 0.8rem; color: #64748b; }
 </style>
 {% endblock %}
@@ -41,9 +45,7 @@
 
 <div class="chat-container" id="chat-box">
     <div class="chat-message assistant">
-        <div>
-            <div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div>
-        </div>
+        <div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div>
     </div>
 </div>
 
@@ -65,15 +67,15 @@ function addMessage(text, role, tokens) {
     const div = document.createElement('div');
     div.className = `chat-message ${role}`;
 
-    let bubble;
     if (role === 'assistant') {
-        // Render markdown for assistant messages
         const html = marked.parse(text);
-        bubble = `<div><div class="chat-bubble">${html}</div>${tokens ? `<div class="chat-meta">${tokens} tokens</div>` : ''}</div>`;
+        div.innerHTML = `
+            <div class="chat-bubble">${html}</div>
+            ${tokens ? `<div class="chat-meta">${tokens} tokens</div>` : ''}
+        `;
     } else {
-        bubble = `<div><div class="chat-bubble">${text}</div></div>`;
+        div.innerHTML = `<div class="chat-bubble">${text}</div>`;
     }
-    div.innerHTML = bubble;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -86,7 +88,7 @@ function sendQuick(msg) {
 function clearChat() {
     chatBox.innerHTML = `
         <div class="chat-message assistant">
-            <div><div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div></div>
+            <div class="chat-bubble">Assalamu Alaikum! How can I help you today?</div>
         </div>`;
     sessionTokens = 0;
     document.getElementById('session-tokens').textContent = 'Tokens: 0';
@@ -105,7 +107,7 @@ form.addEventListener('submit', async (e) => {
     const typingDiv = document.createElement('div');
     typingDiv.className = 'chat-message assistant';
     typingDiv.id = 'typing';
-    typingDiv.innerHTML = '<div><div class="chat-bubble" aria-busy="true">Thinking...</div></div>';
+    typingDiv.innerHTML = '<div class="chat-bubble" aria-busy="true">Thinking...</div>';
     chatBox.appendChild(typingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 

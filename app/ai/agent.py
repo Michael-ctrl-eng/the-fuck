@@ -66,7 +66,7 @@ async def process_customer_message(
     # 6. Detect language
     lang = detect_language(message_text)
 
-    # 7. Build system prompt with tenant's delivery settings
+    # 7. Build system prompt with tenant's delivery + payment settings
     system_prompt = get_system_prompt(
         business_name=tenant.page_name,
         products_context=products_context,
@@ -75,6 +75,7 @@ async def process_customer_message(
         delivery_inside=float(tenant.delivery_inside_dhaka or 80),
         delivery_outside=float(tenant.delivery_outside_dhaka or 150),
         free_delivery_above=float(tenant.free_delivery_above) if tenant.free_delivery_above else None,
+        mfs_numbers=tenant.mfs_numbers,
     )
 
     # 9. Build messages for LLM

@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI):
                 ("tenants", "delivery_inside_dhaka", "NUMERIC(10,2) DEFAULT 80"),
                 ("tenants", "delivery_outside_dhaka", "NUMERIC(10,2) DEFAULT 150"),
                 ("tenants", "free_delivery_above", "NUMERIC(10,2)"),
+                ("tenants", "mfs_numbers", "JSONB"),
             ]
             for table, col, coltype in migrations:
                 try:

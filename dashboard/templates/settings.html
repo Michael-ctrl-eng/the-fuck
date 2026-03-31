@@ -80,6 +80,29 @@
     </form>
 </article>
 
+<!-- MFS Payment Numbers -->
+<article>
+    <header><h3>Mobile Payment Numbers (bKash/Nagad/Rocket)</h3></header>
+    <p><small>Add your mobile payment numbers. The AI chatbot will share these with customers when they choose bKash/Nagad/Rocket payment.</small></p>
+    <form id="mfs-form">
+        <div class="grid">
+            <div>
+                <label>bKash Number</label>
+                <input type="text" id="mfs_bkash" placeholder="01XXXXXXXXX">
+            </div>
+            <div>
+                <label>Nagad Number</label>
+                <input type="text" id="mfs_nagad" placeholder="01XXXXXXXXX">
+            </div>
+            <div>
+                <label>Rocket Number</label>
+                <input type="text" id="mfs_rocket" placeholder="01XXXXXXXXX">
+            </div>
+        </div>
+        <button type="submit">Save Payment Numbers</button>
+    </form>
+</article>
+
 <!-- Facebook Integration -->
 <article>
     <header><h3>Facebook Page Integration</h3></header>
@@ -140,6 +163,10 @@ async function loadSettings() {
     document.getElementById('delivery_inside_dhaka').value = t.delivery_inside_dhaka || 80;
     document.getElementById('delivery_outside_dhaka').value = t.delivery_outside_dhaka || 150;
     document.getElementById('free_delivery_above').value = t.free_delivery_above || '';
+    const mfs = t.mfs_numbers || {};
+    document.getElementById('mfs_bkash').value = mfs.bkash || '';
+    document.getElementById('mfs_nagad').value = mfs.nagad || '';
+    document.getElementById('mfs_rocket').value = mfs.rocket || '';
 
     // FB connection status
     if (t.fb_page_id) {
@@ -231,6 +258,20 @@ async function deleteCrawledProducts() {
     alert(`Deleted ${crawled.length} crawled products.`);
     loadStats();
 }
+
+document.getElementById('mfs-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mfs_numbers = {};
+    const bkash = document.getElementById('mfs_bkash').value.trim();
+    const nagad = document.getElementById('mfs_nagad').value.trim();
+    const rocket = document.getElementById('mfs_rocket').value.trim();
+    if (bkash) mfs_numbers.bkash = bkash;
+    if (nagad) mfs_numbers.nagad = nagad;
+    if (rocket) mfs_numbers.rocket = rocket;
+
+    const resp = await fetch(`/api/tenants/${tenantId}`, {method: 'PATCH', headers, body: JSON.stringify({mfs_numbers})});
+    if (resp.ok) alert('Payment numbers saved!');
+});
 
 document.getElementById('delivery-form').addEventListener('submit', async (e) => {
     e.preventDefault();

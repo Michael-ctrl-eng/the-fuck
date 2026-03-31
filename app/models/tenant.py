@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import ForeignKey, String, Text, Boolean, Numeric
+from sqlalchemy import ForeignKey, String, Text, Boolean, Numeric, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -24,6 +24,8 @@ class Tenant(Base):
     delivery_inside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=80)
     delivery_outside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=150)
     free_delivery_above: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    # MFS payment numbers stored as JSON: {"bkash": "01712345678", "nagad": "01812345678", "rocket": ""}
+    mfs_numbers: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(

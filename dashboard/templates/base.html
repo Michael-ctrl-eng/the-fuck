@@ -107,17 +107,37 @@
             background: var(--pico-card-background-color);
         }
         .chat-message { margin-bottom: 0.8rem; display: flex; }
-        .chat-message.customer { justify-content: flex-start; }
-        .chat-message.assistant { justify-content: flex-end; }
+        .chat-message.customer { justify-content: flex-end; }
+        .chat-message.assistant { justify-content: flex-start; }
         .chat-bubble {
             max-width: 75%;
             padding: 0.7rem 1rem;
             border-radius: 1rem;
             line-height: 1.5;
+            font-size: 0.92rem;
         }
-        .customer .chat-bubble { background: #f1f5f9; color: #1e293b; }
-        .assistant .chat-bubble { background: #1a1a2e; color: #e2e8f0; }
-        .assistant .chat-bubble a { color: #93c5fd; }
+        .customer .chat-bubble {
+            background: #1e40af;
+            color: #fff;
+            border-bottom-right-radius: 0.2rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .assistant .chat-bubble {
+            background: #f1f5f9;
+            color: #1e293b;
+            border-bottom-left-radius: 0.2rem;
+        }
+        .assistant .chat-bubble a { color: #2563eb; }
+        .assistant .chat-bubble strong { color: #0f172a; }
+        .assistant .chat-bubble h1, .assistant .chat-bubble h2,
+        .assistant .chat-bubble h3, .assistant .chat-bubble h4 {
+            margin: 0.4rem 0 0.2rem; font-size: 0.95rem; color: #1e293b;
+        }
+        .assistant .chat-bubble ul, .assistant .chat-bubble ol {
+            margin: 0.3rem 0; padding-left: 1.2rem;
+        }
+        .assistant .chat-bubble p { margin: 0.3rem 0; }
 
         /* Token usage bar */
         .token-bar {

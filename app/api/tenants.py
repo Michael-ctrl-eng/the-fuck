@@ -23,6 +23,7 @@ def _tenant_response(t) -> TenantResponse:
         delivery_inside_dhaka=t.delivery_inside_dhaka,
         delivery_outside_dhaka=t.delivery_outside_dhaka,
         free_delivery_above=t.free_delivery_above,
+        mfs_numbers=t.mfs_numbers,
         is_active=t.is_active,
         created_at=t.created_at,
     )
