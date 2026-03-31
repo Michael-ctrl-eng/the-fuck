@@ -253,7 +253,7 @@ async function loadOrders() {
     container.innerHTML = `
         <table>
             <thead>
-                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Location</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Location</th><th>Total</th><th>Payment</th><th>MFS Verification</th><th>Status</th><th>Date</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 ${data.orders.map(o => `
@@ -263,7 +263,8 @@ async function loadOrders() {
                         <td>${o.customer_phone}</td>
                         <td style="font-size:0.8rem;">${[o.district, o.division].filter(Boolean).join(', ')}</td>
                         <td>৳${o.total}</td>
-                        <td style="font-size:0.8rem;">${o.payment_method.toUpperCase()}${o.payment_phone_last2 ? ' ('+o.payment_phone_last2+')' : ''}</td>
+                        <td style="font-size:0.8rem;">${o.payment_method.toUpperCase()}</td>
+                        <td style="font-size:0.8rem;">${o.payment_phone_last2 ? 'Last 2: '+o.payment_phone_last2 : ''}${o.payment_trx_id ? ' TrxID: '+o.payment_trx_id : ''}${!o.payment_phone_last2 && !o.payment_trx_id ? (o.payment_method === 'cod' ? '-' : '<span style=\"color:#dc3545;\">Not verified</span>') : ''}</td>
                         <td><span class="badge badge-${o.status}">${o.status}</span></td>
                         <td style="font-size:0.85rem;">${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
                         <td style="white-space:nowrap;">

@@ -79,10 +79,11 @@ When customer wants to order:
    Do NOT confirm order until they give verification.
    Do NOT show MFS numbers before customer chooses MFS payment.
 
-5. After ALL info confirmed, show summary and output JSON:
+5. After ALL info confirmed (including MFS verification if applicable), show summary and output JSON:
 ```json
-{{"action":"create_order","order_data":{{"product_name":"...","quantity":1,"customer_name":"...","customer_phone":"01...","division":"...","district":"...","upazila":"...","address_detail":"...","payment_method":"cod"}}}}
+{{"action":"create_order","order_data":{{"product_name":"...","quantity":1,"customer_name":"...","customer_phone":"01...","division":"...","district":"...","upazila":"...","address_detail":"...","payment_method":"cod","payment_phone_last2":"","payment_trx_id":""}}}}
 ```
+For MFS payments, fill payment_phone_last2 with the last 2 digits OR payment_trx_id with the transaction ID the customer provided.
 
 ## DELIVERY
 - ঢাকা: ৳{int(delivery_inside)} (১-২ দিন)

@@ -268,6 +268,14 @@ async def _create_order_from_data(
             items=items,
             delivery_charge=_calc_delivery(tenant, order_data.get("division", ""), items, matching),
         )
+
+        # Save MFS payment verification if provided
+        if order_data.get("payment_phone_last2"):
+            order.payment_phone_last2 = order_data["payment_phone_last2"]
+        if order_data.get("payment_trx_id"):
+            order.payment_trx_id = order_data["payment_trx_id"]
+        await db.flush()
+
         logger.info(f"Order {order.order_number} created for tenant {tenant.page_name}")
 
         # Send notification (best effort)
