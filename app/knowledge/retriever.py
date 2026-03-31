@@ -64,8 +64,17 @@ async def retrieve_context(
     if not selected_ids:
         return "", ""
 
-    # Fetch content from selected nodes
-    products_text, knowledge_text = _extract_content(structure, selected_ids)
+    # Also include child node IDs (if a category is selected, include all its products)
+    expanded_ids = set(selected_ids)
+    for node in _flatten_all(structure):
+        if node.get("node_id") in expanded_ids:
+            for child in node.get("nodes", []):
+                child_id = child.get("node_id")
+                if child_id:
+                    expanded_ids.add(child_id)
+
+    # Fetch content from selected + expanded nodes
+    products_text, knowledge_text = _extract_content(structure, list(expanded_ids))
 
     return products_text, knowledge_text
 
@@ -125,6 +134,17 @@ def _build_toc(nodes: list, indent: int = 0) -> str:
             lines.append(_build_toc(children, indent + 1))
 
     return "\n".join(lines)
+
+
+def _flatten_all(nodes: list) -> list[dict]:
+    """Flatten tree keeping node references (with children intact)."""
+    flat = []
+    for node in nodes:
+        if isinstance(node, dict):
+            flat.append(node)
+            if node.get("nodes"):
+                flat.extend(_flatten_all(node["nodes"]))
+    return flat
 
 
 def _extract_content(nodes: list, selected_ids: list[str]) -> tuple[str, str]:
