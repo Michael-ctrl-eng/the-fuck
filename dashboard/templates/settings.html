@@ -298,12 +298,15 @@ async function deleteCrawledProducts() {
 document.getElementById('mfs-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const mfs_numbers = {};
-    const bkash = document.getElementById('mfs_bkash').value.trim();
-    const nagad = document.getElementById('mfs_nagad').value.trim();
-    const rocket = document.getElementById('mfs_rocket').value.trim();
-    if (bkash) mfs_numbers.bkash = bkash;
-    if (nagad) mfs_numbers.nagad = nagad;
-    if (rocket) mfs_numbers.rocket = rocket;
+    const fields = ['bkash', 'nagad', 'rocket'];
+    fields.forEach(f => {
+        const num = document.getElementById(`mfs_${f}`).value.trim();
+        const type = document.getElementById(`mfs_${f}_type`).value;
+        if (num) {
+            mfs_numbers[f] = num;
+            mfs_numbers[`${f}_type`] = type || 'personal';
+        }
+    });
 
     const resp = await fetch(`/api/tenants/${tenantId}`, {method: 'PATCH', headers, body: JSON.stringify({mfs_numbers})});
     if (resp.ok) alert('Payment numbers saved!');

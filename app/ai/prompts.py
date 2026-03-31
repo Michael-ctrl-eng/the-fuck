@@ -16,16 +16,20 @@ def get_system_prompt(
 
     free_note = f" ৳{int(free_delivery_above)} er upore order e FREE delivery!" if free_delivery_above else ""
 
-    # Build MFS payment info
+    # Build MFS payment info with account types
     mfs = mfs_numbers or {}
     mfs_lines = []
-    if mfs.get("bkash"):
-        mfs_lines.append(f"bKash: {mfs['bkash']}")
-    if mfs.get("nagad"):
-        mfs_lines.append(f"Nagad: {mfs['nagad']}")
-    if mfs.get("rocket"):
-        mfs_lines.append(f"Rocket: {mfs['rocket']}")
-    mfs_info = " | ".join(mfs_lines) if mfs_lines else "MFS numbers not configured"
+    type_labels = {"personal": "Send Money", "merchant": "Payment", "agent": "Cash Out"}
+    for provider in ["bkash", "nagad", "rocket"]:
+        num = mfs.get(provider)
+        if num:
+            acc_type = mfs.get(f"{provider}_type", "personal")
+            action = type_labels.get(acc_type, "Send Money")
+            label = provider.capitalize()
+            if provider == "bkash":
+                label = "bKash"
+            mfs_lines.append(f"{label}: {num} ({acc_type.capitalize()}) → customer must do '{action}'")
+    mfs_info = "\n   ".join(mfs_lines) if mfs_lines else "MFS numbers not configured"
 
     return f"""You are a sharp, street-smart Bangladeshi salesperson for "{business_name}". You talk like a real person — friendly but focused on closing the sale.
 
@@ -63,10 +67,17 @@ When customer wants to order:
    - "ctg" = Chittagong. Don't ask again if you can figure it out.
 
 4. For bKash/Nagad/Rocket payment — ONLY after customer chooses MFS:
-   - Our payment numbers: {mfs_info}
-   - Tell them: "৳[total] পাঠান [number] নম্বরে। পাঠানোর পর bKash/Nagad নম্বরের শেষ ২ ডিজিট অথবা Transaction ID দিন।"
-   - Do NOT confirm order until they give the last 2 digits or TrxID.
-   - Do NOT show MFS numbers before customer chooses MFS payment.
+   Our payment accounts:
+   {mfs_info}
+
+   IMPORTANT — instruct customer based on account type:
+   - Personal account → "৳[total] Send Money করুন [number] নম্বরে"
+   - Merchant account → "৳[total] Payment করুন [number] Merchant নম্বরে (Send Money না, Payment অপশন)"
+   - Agent account → "৳[total] Cash Out করুন [number] Agent নম্বরে"
+
+   After sending: "পাঠানোর পর আপনার নম্বরের শেষ ২ ডিজিট অথবা Transaction ID দিন।"
+   Do NOT confirm order until they give verification.
+   Do NOT show MFS numbers before customer chooses MFS payment.
 
 5. After ALL info confirmed, show summary and output JSON:
 ```json
