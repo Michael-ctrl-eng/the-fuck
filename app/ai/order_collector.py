@@ -18,9 +18,9 @@ def extract_order_from_response(response_text: str) -> dict | None:
         re.DOTALL,
     )
     if not json_match:
-        # Try without code block
+        # Try without code block — match nested JSON
         json_match = re.search(
-            r'\{"action":\s*"create_order".*?\}}\s*\}',
+            r'\{"action":\s*"create_order".*\}',
             response_text,
             re.DOTALL,
         )
@@ -29,7 +29,8 @@ def extract_order_from_response(response_text: str) -> dict | None:
         return None
 
     try:
-        data = json.loads(json_match.group(1) if json_match.lastindex else json_match.group(0))
+        raw = json_match.group(1) if json_match.lastindex else json_match.group(0)
+        data = json.loads(raw)
         if data.get("action") == "create_order":
             order_data = data.get("order_data", {})
             return validate_order_data(order_data)
@@ -40,17 +41,11 @@ def extract_order_from_response(response_text: str) -> dict | None:
 
 
 def validate_order_data(data: dict) -> dict | None:
-    """Validate extracted order data. Returns validated data or None."""
-    required_fields = [
-        "product_name",
-        "customer_name",
-        "customer_phone",
-        "division",
-        "district",
-        "address_detail",
-    ]
+    """Validate extracted order data. Supports both single and multi-item orders."""
 
-    for field in required_fields:
+    # Required customer fields
+    required = ["customer_name", "customer_phone", "division", "district", "address_detail"]
+    for field in required:
         if not data.get(field):
             logger.warning(f"Missing required order field: {field}")
             return None
@@ -61,21 +56,45 @@ def validate_order_data(data: dict) -> dict | None:
         logger.warning(f"Invalid BD phone number: {phone}")
         return None
 
+    # Handle both formats:
+    # New: {"items": [{"product_name": "...", "quantity": 1}, ...]}
+    # Old: {"product_name": "...", "quantity": 1}
+    if "items" not in data:
+        # Old format — convert to items array
+        if data.get("product_name"):
+            data["items"] = [{
+                "product_name": data.pop("product_name"),
+                "quantity": data.pop("quantity", 1),
+            }]
+        else:
+            logger.warning("No items or product_name in order")
+            return None
+    else:
+        # Validate items array
+        items = data["items"]
+        if not items or not isinstance(items, list):
+            logger.warning("Items must be a non-empty array")
+            return None
+        for item in items:
+            if not item.get("product_name"):
+                logger.warning("Item missing product_name")
+                return None
+            item.setdefault("quantity", 1)
+
     # Set defaults
-    data.setdefault("quantity", 1)
     data.setdefault("payment_method", "cod")
     data.setdefault("upazila", "")
+    data.setdefault("payment_phone_last2", "")
+    data.setdefault("payment_trx_id", "")
 
     return data
 
 
 def clean_response_for_customer(response_text: str) -> str:
     """Remove the JSON block from response before sending to customer."""
-    # Remove JSON code blocks
     cleaned = re.sub(r'```json\s*\{.*?\}\s*```', '', response_text, flags=re.DOTALL)
-    # Remove inline JSON blocks
     cleaned = re.sub(
-        r'\{"action":\s*"create_order".*?\}}\s*\}',
+        r'\{"action":\s*"create_order".*\}',
         '',
         cleaned,
         flags=re.DOTALL,

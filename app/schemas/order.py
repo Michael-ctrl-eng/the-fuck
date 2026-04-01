@@ -27,6 +27,11 @@ class OrderResponse(BaseModel):
     payment_method: str
     payment_phone_last2: str | None = None
     payment_trx_id: str | None = None
+    api_status: str | None = None
+    api_status_code: int | None = None
+    api_external_id: str | None = None
+    api_response: str | None = None
+    api_called_at: str | None = None
     subtotal: Decimal
     delivery_charge: Decimal
     total: Decimal

@@ -37,6 +37,12 @@ async def lifespan(app: FastAPI):
                 ("tenants", "delivery_outside_dhaka", "NUMERIC(10,2) DEFAULT 150"),
                 ("tenants", "free_delivery_above", "NUMERIC(10,2)"),
                 ("tenants", "mfs_numbers", "JSONB"),
+                ("tenants", "order_api_config", "JSONB"),
+                ("orders", "api_status", "VARCHAR(20)"),
+                ("orders", "api_response", "TEXT"),
+                ("orders", "api_status_code", "INTEGER"),
+                ("orders", "api_called_at", "TIMESTAMP"),
+                ("orders", "api_external_id", "VARCHAR(100)"),
             ]
             for table, col, coltype in migrations:
                 try:

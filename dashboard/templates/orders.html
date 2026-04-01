@@ -253,7 +253,7 @@ async function loadOrders() {
     container.innerHTML = `
         <table>
             <thead>
-                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Location</th><th>Total</th><th>Payment</th><th>MFS Verification</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                <tr><th>Order #</th><th>Customer</th><th>Phone</th><th>Location</th><th>Items</th><th>Total</th><th>Payment</th><th>MFS</th><th>API</th><th>Status</th><th>Date</th><th>Actions</th></tr>
             </thead>
             <tbody>
                 ${data.orders.map(o => `
@@ -262,9 +262,11 @@ async function loadOrders() {
                         <td>${o.customer_name}</td>
                         <td>${o.customer_phone}</td>
                         <td style="font-size:0.8rem;">${[o.district, o.division].filter(Boolean).join(', ')}</td>
+                        <td style="font-size:0.8rem;">${o.items.length} item${o.items.length > 1 ? 's' : ''}</td>
                         <td>৳${o.total}</td>
                         <td style="font-size:0.8rem;">${o.payment_method.toUpperCase()}</td>
-                        <td style="font-size:0.8rem;">${o.payment_phone_last2 ? 'Last 2: '+o.payment_phone_last2 : ''}${o.payment_trx_id ? ' TrxID: '+o.payment_trx_id : ''}${!o.payment_phone_last2 && !o.payment_trx_id ? (o.payment_method === 'cod' ? '-' : '<span style=\"color:#dc3545;\">Not verified</span>') : ''}</td>
+                        <td style="font-size:0.8rem;">${o.payment_phone_last2 ? 'Last2: '+o.payment_phone_last2 : ''}${o.payment_trx_id ? ' Trx: '+o.payment_trx_id : ''}${!o.payment_phone_last2 && !o.payment_trx_id ? (o.payment_method === 'cod' ? '-' : '<span style="color:#dc3545;">N/A</span>') : ''}</td>
+                        <td style="font-size:0.8rem;">${o.api_status === 'success' ? '<span class="badge badge-delivered">✅ '+( o.api_external_id || o.api_status_code)+'</span>' : o.api_status === 'failed' ? '<span class="badge badge-cancelled">❌ '+(o.api_status_code||'err')+'</span> <button class="outline" style="padding:0.1rem 0.3rem;font-size:0.7rem;" onclick="retryApi(\''+o.id+'\')">Retry</button>' : o.api_status === 'not_configured' ? '<span style="color:#94a3b8;">—</span>' : '<span style="color:#94a3b8;">—</span>'}</td>
                         <td><span class="badge badge-${o.status}">${o.status}</span></td>
                         <td style="font-size:0.85rem;">${new Date(o.created_at).toLocaleDateString('en-BD')}</td>
                         <td style="white-space:nowrap;">
@@ -330,6 +332,18 @@ async function showOrder(id) {
             </tbody>
         </table>
         <p><strong>Subtotal:</strong> ৳${o.subtotal} | <strong>Delivery:</strong> ৳${o.delivery_charge} | <strong>Total:</strong> ৳${o.total}</p>
+
+        ${o.api_status ? `
+        <h4>External API Status</h4>
+        <table>
+            <tr><td><strong>Status</strong></td><td>${o.api_status === 'success' ? '<span class="badge badge-delivered">Success</span>' : o.api_status === 'failed' ? '<span class="badge badge-cancelled">Failed</span>' : o.api_status}</td></tr>
+            ${o.api_status_code ? `<tr><td><strong>HTTP Code</strong></td><td>${o.api_status_code}</td></tr>` : ''}
+            ${o.api_external_id ? `<tr><td><strong>External Order ID</strong></td><td>${o.api_external_id}</td></tr>` : ''}
+            ${o.api_called_at ? `<tr><td><strong>Called At</strong></td><td>${new Date(o.api_called_at).toLocaleString('en-BD')}</td></tr>` : ''}
+            ${o.api_response ? `<tr><td><strong>Response</strong></td><td><details><summary>View</summary><pre style="font-size:0.75rem;max-height:100px;overflow:auto;">${o.api_response}</pre></details></td></tr>` : ''}
+        </table>
+        ${o.api_status === 'failed' ? `<button class="outline" style="padding:0.3rem 0.7rem;" onclick="retryApi('${o.id}')">🔄 Retry API Call</button>` : ''}
+        ` : ''}
     `;
     document.getElementById('order-modal').showModal();
 }
@@ -362,6 +376,18 @@ async function confirmCancel() {
         method: 'PATCH', headers, body: JSON.stringify({status: 'cancelled', notes: reason})
     });
     document.getElementById('cancel-modal').close();
+    loadOrders();
+}
+
+async function retryApi(orderId) {
+    if (!confirm('Retry sending this order to the external API?')) return;
+    const resp = await fetch(`/api/tenants/${tenantId}/orders/${orderId}/retry-api`, {method: 'POST', headers});
+    const result = await resp.json();
+    if (result.status === 'success') {
+        alert('API call successful! External ID: ' + (result.external_id || 'N/A'));
+    } else {
+        alert('API call failed: ' + (result.error || 'Unknown error'));
+    }
     loadOrders();
 }
 

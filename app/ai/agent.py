@@ -212,37 +212,43 @@ async def _create_order_from_data(
     conversation: Conversation,
     order_data: dict,
 ) -> None:
-    """Create an order from extracted AI data."""
+    """Create an order from extracted AI data. Supports multi-item cart."""
     from app.services.order_service import create_order
     from app.services.notification_service import notify_new_order
     from app.models.product import Product
 
-    # Find matching product in DB for price
-    product_name = order_data["product_name"]
-    result = await db.execute(
-        select(Product).where(
-            Product.tenant_id == tenant.id,
-            Product.is_active == True,
-            Product.name.ilike(f"%{product_name}%"),
-        ).limit(1)
-    )
-    matching = result.scalar_one_or_none()
+    # Build items list — find matching products in DB for prices
+    order_items = order_data.get("items", [])
+    items = []
+    for item in order_items:
+        product_name = item["product_name"]
+        quantity = item.get("quantity", 1)
 
-    if matching:
-        attrs = matching.attributes or {}
-        unit_price = attrs.get("discount_price") or matching.price
-    else:
-        unit_price = 0
-    quantity = order_data.get("quantity", 1)
+        result = await db.execute(
+            select(Product).where(
+                Product.tenant_id == tenant.id,
+                Product.is_active == True,
+                Product.name.ilike(f"%{product_name}%"),
+            ).limit(1)
+        )
+        matching = result.scalar_one_or_none()
 
-    items = [
-        {
+        if matching:
+            attrs = matching.attributes or {}
+            unit_price = attrs.get("discount_price") or matching.price
+        else:
+            unit_price = 0
+
+        items.append({
             "product_id": str(matching.id) if matching else None,
             "product_name": product_name,
             "quantity": quantity,
             "unit_price": unit_price,
-        }
-    ]
+        })
+
+    if not items:
+        logger.warning("No items in order data")
+        return
 
     # Update customer details
     customer.name = order_data.get("customer_name", customer.name)
@@ -251,6 +257,11 @@ async def _create_order_from_data(
     customer.district = order_data.get("district")
     customer.upazila = order_data.get("upazila")
     customer.address_detail = order_data.get("address_detail")
+
+    # Calculate delivery (use first item's product for product-level override check)
+    first_product = None
+    if items[0].get("product_id"):
+        first_product = await db.get(Product, uuid.UUID(items[0]["product_id"]))
 
     try:
         order = await create_order(
@@ -266,17 +277,36 @@ async def _create_order_from_data(
             address_detail=order_data["address_detail"],
             payment_method=order_data.get("payment_method", "cod"),
             items=items,
-            delivery_charge=_calc_delivery(tenant, order_data.get("division", ""), items, matching),
+            delivery_charge=_calc_delivery(tenant, order_data.get("division", ""), items, first_product),
         )
 
-        # Save MFS payment verification if provided
+        # Save MFS payment verification
         if order_data.get("payment_phone_last2"):
             order.payment_phone_last2 = order_data["payment_phone_last2"]
         if order_data.get("payment_trx_id"):
             order.payment_trx_id = order_data["payment_trx_id"]
         await db.flush()
 
-        logger.info(f"Order {order.order_number} created for tenant {tenant.page_name}")
+        logger.info(f"Order {order.order_number} created: {len(items)} items, ৳{order.total}")
+
+        # Call external order API if configured (use fresh DB session)
+        try:
+            from app.services.order_api_service import call_order_api
+            from app.database import async_session
+            async with async_session() as api_db:
+                # Reload order and tenant in new session
+                from app.models.order import Order as OrderModel
+                from sqlalchemy.orm import selectinload
+                result = await api_db.execute(
+                    select(OrderModel).where(OrderModel.id == order.id).options(selectinload(OrderModel.items))
+                )
+                fresh_order = result.scalar_one_or_none()
+                fresh_tenant = await api_db.get(Tenant, tenant.id)
+                if fresh_order and fresh_tenant:
+                    await call_order_api(api_db, fresh_tenant, fresh_order)
+                    await api_db.commit()
+        except Exception as e:
+            logger.error(f"External order API failed: {e}")
 
         # Send notification (best effort)
         try:

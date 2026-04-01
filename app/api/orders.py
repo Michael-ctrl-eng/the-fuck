@@ -24,6 +24,11 @@ def _order_response(o) -> OrderResponse:
         address_detail=o.address_detail, payment_method=o.payment_method,
         payment_phone_last2=o.payment_phone_last2,
         payment_trx_id=o.payment_trx_id,
+        api_status=o.api_status,
+        api_status_code=o.api_status_code,
+        api_external_id=o.api_external_id,
+        api_response=o.api_response,
+        api_called_at=str(o.api_called_at) if o.api_called_at else None,
         subtotal=o.subtotal, delivery_charge=o.delivery_charge,
         total=o.total, status=o.status, notes=o.notes,
         created_at=o.created_at,
@@ -172,6 +177,22 @@ async def update_notes(
     order.notes = req.notes
     await db.flush()
     return {"status": "updated"}
+
+
+@router.post("/{order_id}/retry-api")
+async def retry_api_call(
+    order_id: uuid.UUID,
+    tenant=Depends(get_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retry external order API call for a failed order."""
+    order = await order_service.get_order_by_id(db, tenant.id, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    from app.services.order_api_service import call_order_api
+    result = await call_order_api(db, tenant, order)
+    return result
 
 
 @router.patch("/{order_id}/payment")

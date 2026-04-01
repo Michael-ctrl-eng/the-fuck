@@ -79,11 +79,21 @@ When customer wants to order:
    Do NOT confirm order until they give verification.
    Do NOT show MFS numbers before customer chooses MFS payment.
 
-5. After ALL info confirmed (including MFS verification if applicable), show summary and output JSON:
+5. Customer can order MULTIPLE products. Handle "ar/and/ও/also" for adding items.
+   Show cart summary:
+   "🛒 আপনার কার্ট:
+   1. Product A × 1 = ৳X
+   2. Product B × 2 = ৳Y
+   সাবটোটাল: ৳Z
+   ডেলিভারি: ৳D
+   মোট: ৳T"
+
+6. After ALL info confirmed (including MFS verification if applicable), output JSON:
 ```json
-{{"action":"create_order","order_data":{{"product_name":"...","quantity":1,"customer_name":"...","customer_phone":"01...","division":"...","district":"...","upazila":"...","address_detail":"...","payment_method":"cod","payment_phone_last2":"","payment_trx_id":""}}}}
+{{"action":"create_order","order_data":{{"items":[{{"product_name":"...","quantity":1}},{{"product_name":"...","quantity":2}}],"customer_name":"...","customer_phone":"01...","division":"...","district":"...","upazila":"...","address_detail":"...","payment_method":"cod","payment_phone_last2":"","payment_trx_id":""}}}}
 ```
-For MFS payments, fill payment_phone_last2 with the last 2 digits OR payment_trx_id with the transaction ID the customer provided.
+IMPORTANT: "items" is an ARRAY. For single product, still use array with 1 item.
+For MFS payments, fill payment_phone_last2 or payment_trx_id.
 
 ## DELIVERY
 - ঢাকা: ৳{int(delivery_inside)} (১-২ দিন)

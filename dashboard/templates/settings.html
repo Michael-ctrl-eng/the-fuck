@@ -136,6 +136,91 @@
     </form>
 </article>
 
+<!-- Order Placement API -->
+<article>
+    <header><h3>Order Placement API (Optional)</h3></header>
+    <p><small>Connect your website's order API. When a customer places an order via AI chat, we'll automatically create the order on your website too.</small></p>
+    <form id="order-api-form">
+        <div class="grid">
+            <div>
+                <label>API URL</label>
+                <input type="url" id="oa_url" placeholder="https://yoursite.com/api/orders">
+            </div>
+            <div>
+                <label>Method</label>
+                <select id="oa_method">
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid">
+            <div>
+                <label>Auth Type</label>
+                <select id="oa_auth_type" onchange="toggleAuthFields()">
+                    <option value="none">None</option>
+                    <option value="api_key">API Key (custom header)</option>
+                    <option value="bearer">Bearer Token</option>
+                    <option value="basic">Basic Auth (user:pass)</option>
+                </select>
+            </div>
+            <div id="auth-key-field" style="display:none;">
+                <label>Header Name</label>
+                <input type="text" id="oa_auth_key" placeholder="X-API-Key">
+            </div>
+            <div id="auth-value-field" style="display:none;">
+                <label>Key / Token</label>
+                <input type="text" id="oa_auth_value" placeholder="sk-your-api-key">
+            </div>
+        </div>
+        <div id="auth-basic-fields" style="display:none;" class="grid">
+            <div><label>Username</label><input type="text" id="oa_auth_user"></div>
+            <div><label>Password</label><input type="password" id="oa_auth_pass"></div>
+        </div>
+
+        <label>Request Body Template (JSON with placeholders)</label>
+        <textarea id="oa_template" rows="10" style="font-family:monospace; font-size:0.85rem;"></textarea>
+        <div style="margin-bottom:1rem;">
+            <button type="button" class="outline secondary" style="padding:0.2rem 0.6rem; font-size:0.8rem;" onclick="loadSampleTemplate()">Load Sample Template</button>
+            <small style="margin-left:0.5rem;">Click to auto-fill with a working example</small>
+        </div>
+        <details style="margin-bottom:1rem;" open>
+            <summary><small><strong>Available Placeholders</strong> — use these inside your JSON template</small></summary>
+            <table style="font-size:0.8rem;">
+                <tbody>
+                    <tr><td><code>{{"{{customer_name}}"}}</code></td><td>Customer's full name</td></tr>
+                    <tr><td><code>{{"{{customer_phone}}"}}</code></td><td>Phone number (01XXXXXXXXX)</td></tr>
+                    <tr><td><code>{{"{{division}}"}}</code></td><td>Division (Dhaka, Chittagong, etc.)</td></tr>
+                    <tr><td><code>{{"{{district}}"}}</code></td><td>District</td></tr>
+                    <tr><td><code>{{"{{upazila}}"}}</code></td><td>Upazila/Thana</td></tr>
+                    <tr><td><code>{{"{{address_detail}}"}}</code></td><td>Full street address</td></tr>
+                    <tr><td><code>{{"{{payment_method}}"}}</code></td><td>cod / bkash / nagad</td></tr>
+                    <tr><td><code>{{"{{payment_phone_last2}}"}}</code></td><td>Last 2 digits of MFS number</td></tr>
+                    <tr><td><code>{{"{{payment_trx_id}}"}}</code></td><td>MFS Transaction ID</td></tr>
+                    <tr><td><code>{{"{{items_json}}"}}</code></td><td>Array of items: [{"name":"...","qty":1,"price":100}]</td></tr>
+                    <tr><td><code>{{"{{subtotal}}"}}</code></td><td>Items total before delivery</td></tr>
+                    <tr><td><code>{{"{{delivery_charge}}"}}</code></td><td>Delivery charge amount</td></tr>
+                    <tr><td><code>{{"{{total}}"}}</code></td><td>Grand total (subtotal + delivery)</td></tr>
+                    <tr><td><code>{{"{{order_number}}"}}</code></td><td>Our order number (ORD-YYMMDD-XXX)</td></tr>
+                    <tr><td><code>{{"{{notes}}"}}</code></td><td>Order notes</td></tr>
+                </tbody>
+            </table>
+        </details>
+
+        <div class="grid">
+            <div>
+                <label><input type="checkbox" id="oa_enabled"> Enable API</label>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:flex-end;">
+                <button type="button" class="outline" onclick="testOrderApi()">Test API</button>
+                <button type="submit">Save</button>
+            </div>
+        </div>
+        <div id="oa-test-result" style="display:none; margin-top:0.5rem;"></div>
+    </form>
+</article>
+
 <!-- Facebook Integration -->
 <article>
     <header><h3>Facebook Page Integration</h3></header>
@@ -196,6 +281,19 @@ async function loadSettings() {
     document.getElementById('delivery_inside_dhaka').value = t.delivery_inside_dhaka || 80;
     document.getElementById('delivery_outside_dhaka').value = t.delivery_outside_dhaka || 150;
     document.getElementById('free_delivery_above').value = t.free_delivery_above || '';
+    // Order API
+    const oa = t.order_api_config || {};
+    document.getElementById('oa_url').value = oa.url || '';
+    document.getElementById('oa_method').value = oa.method || 'POST';
+    document.getElementById('oa_auth_type').value = oa.auth_type || 'none';
+    document.getElementById('oa_auth_key').value = oa.auth_key || '';
+    document.getElementById('oa_auth_value').value = oa.auth_value || '';
+    document.getElementById('oa_auth_user').value = oa.auth_user || '';
+    document.getElementById('oa_auth_pass').value = oa.auth_pass || '';
+    document.getElementById('oa_template').value = oa.request_template || '';
+    document.getElementById('oa_enabled').checked = oa.enabled || false;
+    toggleAuthFields();
+
     const mfs = t.mfs_numbers || {};
     document.getElementById('mfs_bkash').value = mfs.bkash || '';
     document.getElementById('mfs_bkash_type').value = mfs.bkash_type || '';
@@ -293,6 +391,81 @@ async function deleteCrawledProducts() {
     }
     alert(`Deleted ${crawled.length} crawled products.`);
     loadStats();
+}
+
+function loadSampleTemplate() {
+    const sample = JSON.stringify({
+        "customer_name": "{{customer_name}}",
+        "phone": "{{customer_phone}}",
+        "address": "{{address_detail}}, {{upazila}}, {{district}}, {{division}}",
+        "items": "{{items_json}}",
+        "payment_method": "{{payment_method}}",
+        "payment_trx_id": "{{payment_trx_id}}",
+        "subtotal": "{{subtotal}}",
+        "delivery_charge": "{{delivery_charge}}",
+        "total": "{{total}}",
+        "order_ref": "{{order_number}}",
+        "notes": "{{notes}}"
+    }, null, 2);
+    document.getElementById('oa_template').value = sample;
+}
+
+function toggleAuthFields() {
+    const type = document.getElementById('oa_auth_type').value;
+    document.getElementById('auth-key-field').style.display = type === 'api_key' ? '' : 'none';
+    document.getElementById('auth-value-field').style.display = ['api_key','bearer'].includes(type) ? '' : 'none';
+    document.getElementById('auth-basic-fields').style.display = type === 'basic' ? '' : 'none';
+}
+
+function getOrderApiConfig() {
+    return {
+        enabled: document.getElementById('oa_enabled').checked,
+        url: document.getElementById('oa_url').value.trim(),
+        method: document.getElementById('oa_method').value,
+        auth_type: document.getElementById('oa_auth_type').value,
+        auth_key: document.getElementById('oa_auth_key').value.trim(),
+        auth_value: document.getElementById('oa_auth_value').value.trim(),
+        auth_user: document.getElementById('oa_auth_user').value.trim(),
+        auth_pass: document.getElementById('oa_auth_pass').value.trim(),
+        request_template: document.getElementById('oa_template').value.trim(),
+    };
+}
+
+document.getElementById('order-api-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const config = getOrderApiConfig();
+    const resp = await fetch(`/api/tenants/${tenantId}`, {method: 'PATCH', headers, body: JSON.stringify({order_api_config: config})});
+    if (resp.ok) alert('Order API saved!');
+});
+
+async function testOrderApi() {
+    const result = document.getElementById('oa-test-result');
+    result.style.display = 'block';
+    result.innerHTML = '<small aria-busy="true">Testing API...</small>';
+
+    const config = getOrderApiConfig();
+    // Save first, then test with a real order if exists
+    await fetch(`/api/tenants/${tenantId}`, {method: 'PATCH', headers, body: JSON.stringify({order_api_config: config})});
+
+    // Get latest order to test with
+    const ordersResp = await fetch(`/api/tenants/${tenantId}/orders?page_size=1`, {headers});
+    const ordersData = await ordersResp.json();
+    if (!ordersData.orders.length) {
+        result.innerHTML = '<div class="flash-error">No orders to test with. Create an order first.</div>';
+        return;
+    }
+
+    const testOrder = ordersData.orders[0];
+    const resp = await fetch(`/api/tenants/${tenantId}/orders/${testOrder.id}/retry-api`, {method: 'POST', headers});
+    const data = await resp.json();
+
+    if (data.status === 'success') {
+        result.innerHTML = `<div class="flash-success">✅ API call successful! HTTP ${data.code}${data.external_id ? ' | External ID: '+data.external_id : ''}</div>`;
+    } else if (data.status === 'not_configured') {
+        result.innerHTML = '<div class="flash-error">API not enabled. Check the "Enable API" checkbox.</div>';
+    } else {
+        result.innerHTML = `<div class="flash-error">❌ Failed! HTTP ${data.code || '?'} | ${data.error || 'Unknown error'}</div>`;
+    }
 }
 
 document.getElementById('mfs-form').addEventListener('submit', async (e) => {

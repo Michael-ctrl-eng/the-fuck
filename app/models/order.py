@@ -29,6 +29,12 @@ class Order(Base):
     payment_method: Mapped[str] = mapped_column(String(30), default="cod")
     payment_phone_last2: Mapped[Optional[str]] = mapped_column(String(10))
     payment_trx_id: Mapped[Optional[str]] = mapped_column(String(50))
+    # External API call tracking
+    api_status: Mapped[Optional[str]] = mapped_column(String(20))  # success, failed, pending, not_configured
+    api_response: Mapped[Optional[str]] = mapped_column(Text)  # raw response body
+    api_status_code: Mapped[Optional[int]] = mapped_column(Integer)
+    api_called_at: Mapped[Optional[datetime]] = mapped_column()
+    api_external_id: Mapped[Optional[str]] = mapped_column(String(100))  # order ID from their system
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     delivery_charge: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))

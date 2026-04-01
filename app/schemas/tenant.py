@@ -41,6 +41,7 @@ class TenantUpdate(BaseModel):
     delivery_outside_dhaka: Decimal | None = None
     free_delivery_above: Decimal | None = None
     mfs_numbers: dict | None = None
+    order_api_config: dict | None = None
 
 
 class TenantResponse(BaseModel):
@@ -55,6 +56,7 @@ class TenantResponse(BaseModel):
     delivery_outside_dhaka: Decimal | None = None
     free_delivery_above: Decimal | None = None
     mfs_numbers: dict | None = None
+    order_api_config: dict | None = None
     is_active: bool
     created_at: datetime
 

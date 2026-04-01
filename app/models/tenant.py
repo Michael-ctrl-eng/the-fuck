@@ -24,8 +24,10 @@ class Tenant(Base):
     delivery_inside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=80)
     delivery_outside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=150)
     free_delivery_above: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
-    # MFS payment numbers stored as JSON: {"bkash": "01712345678", "nagad": "01812345678", "rocket": ""}
+    # MFS payment numbers: {"bkash": "017...", "bkash_type": "merchant", ...}
     mfs_numbers: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    # External order API config: {"url": "...", "method": "POST", "auth_type": "api_key", ...}
+    order_api_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(
