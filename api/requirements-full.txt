@@ -1,0 +1,5 @@
+-r requirements.txt
+asyncpg>=0.29
+pgvector>=0.2.5
+celery[redis]>=5.3
+redis>=5.0
