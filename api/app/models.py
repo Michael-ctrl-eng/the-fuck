@@ -282,6 +282,10 @@ class PageConnection(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     auto_reply_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     last_error: Mapped[str] = mapped_column(String(500), default="")
+    # Per-page personality: auto-built from conversation history
+    style_profile: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    knowledge_base: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    knowledge_built_at: Mapped[datetime | None] = mapped_column(AwareDateTime, nullable=True)
 
     conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="page", cascade="all, delete-orphan"

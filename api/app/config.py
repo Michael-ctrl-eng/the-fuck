@@ -54,12 +54,65 @@ class Settings(BaseSettings):
     )
 
     # --- AI ------------------------------------------------------------------
+    # Provider selection: auto | gemini | openai | ollama
+    # auto = try Gemini first → OpenAI-compatible → Ollama (fastest free option)
+    llm_provider: str = "auto"
+
+    # Google Gemini (FREE: 15 RPM, 1M tokens/day — https://aistudio.google.com/apikey)
+    gemini_api_key: str = ""
+    gemini_model: str = "flash"  # flash | flash-lite | pro
+
+    # OpenAI-compatible (Groq free tier, Together free tier, etc.)
+    openai_api_key: str = ""
+    openai_api_base: str = ""  # e.g. https://api.groq.com/openai/v1
+    openai_model: str = ""  # e.g. llama-3.3-70b-versatile (Groq free)
+
+    # Ollama (local fallback — free, no API key)
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen2.5:7b-instruct-q4_K_M"
     ollama_fallback_model: str = "qwen2.5:3b-instruct-q4_K_M"
+
+    # Embeddings
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
     embedding_batch_size: int = 16
+
+    # --- Page personality (per-page style + knowledge) -------------------------
+    style_build_min_messages: int = 6  # min page messages to auto-build style
+    knowledge_max_items: int = 20  # max knowledge items per page
+
+    # --- Shipping zones (Egypt) ------------------------------------------------
+    # Governorate → zone mapping for shipping cost calculation
+    shipping_zones: dict = {
+        "cairo": {"zone": 1, "cost": 35, "free_threshold": 300},
+        "giza": {"zone": 1, "cost": 35, "free_threshold": 300},
+        "alexandria": {"zone": 2, "cost": 50, "free_threshold": 500},
+        "qalyubia": {"zone": 2, "cost": 45, "free_threshold": 500},
+        "sharqia": {"zone": 2, "cost": 50, "free_threshold": 500},
+        "gharbia": {"zone": 2, "cost": 50, "free_threshold": 500},
+        "monufia": {"zone": 2, "cost": 50, "free_threshold": 500},
+        "beheira": {"zone": 3, "cost": 60, "free_threshold": 600},
+        "kafr-el-sheikh": {"zone": 3, "cost": 60, "free_threshold": 600},
+        "damietta": {"zone": 3, "cost": 60, "free_threshold": 600},
+        "port-said": {"zone": 3, "cost": 60, "free_threshold": 600},
+        "ismailia": {"zone": 3, "cost": 55, "free_threshold": 600},
+        "suez": {"zone": 3, "cost": 55, "free_threshold": 600},
+        "north-sinai": {"zone": 4, "cost": 80, "free_threshold": 800},
+        "south-sinai": {"zone": 4, "cost": 80, "free_threshold": 800},
+        "beni-suef": {"zone": 3, "cost": 65, "free_threshold": 700},
+        "fayoum": {"zone": 3, "cost": 65, "free_threshold": 700},
+        "minya": {"zone": 4, "cost": 75, "free_threshold": 800},
+        "assiut": {"zone": 4, "cost": 75, "free_threshold": 800},
+        "sohag": {"zone": 4, "cost": 80, "free_threshold": 800},
+        "qena": {"zone": 4, "cost": 80, "free_threshold": 800},
+        "luxor": {"zone": 4, "cost": 85, "free_threshold": 800},
+        "aswan": {"zone": 4, "cost": 85, "free_threshold": 800},
+        "red-sea": {"zone": 4, "cost": 90, "free_threshold": 900},
+        "new-valley": {"zone": 5, "cost": 100, "free_threshold": 1000},
+        "matrouh": {"zone": 5, "cost": 100, "free_threshold": 1000},
+    }
+    default_shipping_cost: int = 60
+    default_free_shipping_threshold: int = 500
 
     # --- Speech-to-text (voice notes) ----------------------------------------
     # faster-whisper model: tiny | base | small | medium | large-v3

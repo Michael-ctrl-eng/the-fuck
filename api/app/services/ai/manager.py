@@ -1,4 +1,8 @@
-"""Provider manager — resolves the best available providers at runtime."""
+"""Provider manager — resolves the best available providers at runtime.
+
+Priority: Gemini (free, fast) → OpenAI-compatible (Groq/Together free) → Ollama (local).
+Auto-detection: tries each provider in order, caches the first working one.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +17,6 @@ from .base import (
     UnavailableLLM,
 )
 from .embeddings import LocalEmbeddingProvider
-from .ollama import OllamaProvider
 
 log = structlog.get_logger("raqib.ai.manager")
 
@@ -24,9 +27,49 @@ class ProviderManager:
         self._llm: LLMProvider | None = None
         self._embeddings: EmbeddingProvider | None = None
 
+    def _resolve_llm(self) -> LLMProvider:
+        """Auto-select the best available LLM provider."""
+        provider_pref = self.settings.llm_provider.lower()
+
+        # Explicit selection
+        if provider_pref == "gemini":
+            return self._make_gemini()
+        if provider_pref == "openai":
+            return self._make_openai()
+        if provider_pref == "ollama":
+            return self._make_ollama()
+
+        # Auto: Gemini → OpenAI-compat → Ollama
+        if self.settings.gemini_api_key:
+            p = self._make_gemini()
+            log.info("provider.auto_select", selected="gemini", reason="GEMINI_API_KEY set")
+            return p
+
+        if self.settings.openai_api_key and self.settings.openai_api_base:
+            p = self._make_openai()
+            log.info("provider.auto_select", selected="openai", reason="OPENAI_API_KEY + OPENAI_API_BASE set")
+            return p
+
+        # Fallback to Ollama
+        p = self._make_ollama()
+        log.info("provider.auto_select", selected="ollama", reason="no cloud keys, using local")
+        return p
+
+    def _make_gemini(self) -> LLMProvider:
+        from .gemini import GeminiProvider
+        return GeminiProvider(self.settings)
+
+    def _make_openai(self) -> LLMProvider:
+        from .openai_compat import OpenAICompatProvider
+        return OpenAICompatProvider(self.settings)
+
+    def _make_ollama(self) -> LLMProvider:
+        from .ollama import OllamaProvider
+        return OllamaProvider(self.settings)
+
     def llm(self) -> LLMProvider:
         if self._llm is None:
-            self._llm = OllamaProvider(self.settings)
+            self._llm = self._resolve_llm()
         return self._llm
 
     def embeddings(self) -> EmbeddingProvider:

@@ -35,6 +35,7 @@ from .analyze import stage_analyze
 from .context import StageContext, StageResult
 from .ingest import stage_fetch, stage_validate
 from .outputs import stage_dataset, stage_memory, stage_quality
+from .personality import stage_personality
 from .process import stage_normalize_reconstruct
 
 log = structlog.get_logger("raqib.pipeline")
@@ -93,6 +94,7 @@ STAGES_BY_KIND: dict[str, list[tuple[str, object]]] = {
         ("validate", stage_validate),
         ("reconstruct", stage_normalize_reconstruct),
         ("analyze", stage_analyze),
+        ("personality", stage_personality),
         ("quality", stage_quality),
         ("dataset", stage_dataset),
         ("memory", stage_memory),
@@ -103,6 +105,7 @@ STAGES_BY_KIND: dict[str, list[tuple[str, object]]] = {
         ("validate", stage_validate),
         ("reconstruct", stage_normalize_reconstruct),
         ("analyze", stage_analyze),
+        ("personality", stage_personality),
         ("quality", stage_quality),
         ("dataset", stage_dataset),
         ("memory", stage_memory),

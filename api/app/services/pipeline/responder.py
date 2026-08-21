@@ -22,17 +22,70 @@ from ...config import Settings
 from ..ai.base import ModelUnavailableError
 from ..ai.manager import ProviderManager
 from ..arabic import DIALECT_LABELS, detect_dialect, moderation_check
+from ..page_personality import detect_governorate, calculate_shipping
 from ..search import search_memory
 
-SYSTEM_PROMPT = """أنت مساعد ردود محترف لصفحة عربية على فيسبوك.
-مهمتك: صياغة ردود مهذبة واحترافية على رسائل العملاء، بنفس لهجة الصفحة وأسلوبها.
-قواعد صارمة:
-- اكتب فقط نص الرد، دون مقدمة أو خاتمة خارجية.
-- احترم لهجة المحادثة (استخدم اللهجة نفسها إن لم تكن فصحى).
-- كن مختصرًا (٢-٤ جمل) ومفيدًا.
-- لا تكذب ولا تختلق معلومات؛ إن لم تعرف، قل إنك ستراجع مع الفريق.
-- لا تستخدم كلمات جارحة أو وعودًا تجارية مبالغًا فيها.
-- إن كانت الرسالة إساءة أو احتيالًا، اكتب: "نعتذر، لا يمكننا الرد على هذه الرسالة"."""
+
+def _build_system_prompt(page_style: dict, page_knowledge: list[dict]) -> str:
+    """Build a system prompt that makes the AI talk exactly like the page."""
+    tone = page_style.get("tone", "friendly")
+    dialect = page_style.get("dialect", "egyptian")
+    greeting = page_style.get("greeting_pattern", "")
+    signoff = page_style.get("signoff_pattern", "")
+    emoji_use = page_style.get("emoji_use", 0.0)
+    avg_len = page_style.get("avg_length", "medium")
+    vocabulary = page_style.get("vocabulary", [])
+    sample_replies = page_style.get("sample_replies", [])
+
+    # Build the page personality section
+    personality_lines = [
+        f"أنت مساعد ردود لصفحة على فيسبوك.",
+        f"alk تكلم بأسلوب الصفحة بالظبط:",
+        f"- النبرة: {tone}",
+        f"- اللهجة: {dialect}",
+    ]
+    if greeting:
+        personality_lines.append(f"- تبدأ بـ: \"{greeting}\"")
+    if signoff:
+        personality_lines.append(f"- تنهي بـ: \"{signoff}\"")
+    if emoji_use > 0.2:
+        personality_lines.append("- تستخدم إيموجي بشكل طبيعي")
+    if avg_len == "short":
+        personality_lines.append("- ردود قصيرة ومختصرة (جملة أو اتنين)")
+    elif avg_len == "long":
+        personality_lines.append("- ردود تفصيلية ومفصلة")
+    else:
+        personality_lines.append("- ردود متوسطة الطول (٢-٤ جمل)")
+
+    if vocabulary:
+        personality_lines.append(f"- كلمات مستخدمة كثير: {', '.join(vocabulary[:6])}")
+
+    if sample_replies:
+        personality_lines.append("\nأمثلة على أسلوب الصفحة:")
+        for i, reply in enumerate(sample_replies[:3], 1):
+            personality_lines.append(f"  {i}. {reply}")
+
+    # Knowledge section
+    knowledge_lines = []
+    for item in page_knowledge[:8]:
+        kind = item.get("kind", "")
+        content = item.get("content", "")[:200]
+        if kind == "product":
+            knowledge_lines.append(f"- معلومات منتج: {content}")
+        elif kind == "faq":
+            knowledge_lines.append(f"- سياسة/سؤال شائع: {content}")
+
+    personality_lines.append("\nقواعد صارمة:")
+    personality_lines.append("- اكتب فقط نص الرد، دون مقدمة أو خاتمة.")
+    personality_lines.append("- لا تكذب ولا تختلق معلومات؛ إن لم تعرف، قل ستراجع مع الفريق.")
+    personality_lines.append("- لا تستخدم كلمات جارحة أو وعودًا مبالغًا فيها.")
+    personality_lines.append("- إن كانت الرسالة إساءة أو احتيالاً، اكتب: نعتذر، لا يمكننا الرد على هذه الرسالة.")
+
+    if knowledge_lines:
+        personality_lines.append("\nمعلومات الصفحة:")
+        personality_lines.extend(knowledge_lines)
+
+    return "\n".join(personality_lines)
 
 
 @dataclass
@@ -49,23 +102,32 @@ def _build_user_prompt(
     knowledge: list[str],
     memory: list[dict],
     instructions: str,
+    governorate: str | None = None,
+    shipping_info: dict | None = None,
 ) -> str:
     lines: list[str] = []
     for m in messages[:20]:
         who = "العميل" if m.sender_type == "customer" else "الصفحة"
         lines.append(f"{who}: {m.text_raw or m.text_normalized}")
     convo_text = "\n".join(lines) or "(لا توجد رسائل)"
-    kb = "\n".join(f"- {k}" for k in knowledge[:5]) or "(لا توجد معلومات)"
-    mem = "\n".join(f"- {r['chunk_text'][:240]}" for r in memory[:4]) or "(لا توجد أمثلة)"
-    return f"""المحادثة:
-{convo_text}
+    kb = "\n".join(f"- {k}" for k in knowledge[:5]) or ""
+    mem = "\n".join(f"- {r['chunk_text'][:240]}" for r in memory[:4]) or ""
 
-أسلوب الصفحة: {json.dumps(style, ensure_ascii=False)}
-معلومات نعرفها: {kb}
-أمثلة من محادثات سابقة: {mem}
-{("تعليمات إضافية: " + instructions) if instructions else ""}
+    prompt_parts = [f"المحادثة:\n{convo_text}"]
 
-اكتب الرد الآن:"""
+    if kb:
+        prompt_parts.append(f"\nمعلومات نعرفها:\n{kb}")
+    if mem:
+        prompt_parts.append(f"\nأمثلة من محادثات سابقة:\n{mem}")
+    if governorate:
+        prompt_parts.append(f"\nالعميل من: {governorate}")
+    if shipping_info:
+        prompt_parts.append(f"\nمعلومات الشحن: {shipping_info.get('message', '')}")
+    if instructions:
+        prompt_parts.append(f"\nتعليمات إضافية:\n{instructions}")
+
+    prompt_parts.append("\nاكتب الرد الآن:")
+    return "\n".join(prompt_parts)
 
 
 def _validate_draft(draft: str, conv: models.Conversation) -> tuple[bool, str]:
@@ -84,17 +146,37 @@ def _validate_draft(draft: str, conv: models.Conversation) -> tuple[bool, str]:
     return True, ""
 
 
-async def _collect_knowledge(deps: ResponderDeps) -> list[str]:
+async def _collect_knowledge(deps: ResponderDeps, page: models.PageConnection | None) -> list[str]:
+    """Collect knowledge from both the org-level KB and the per-page KB."""
+    items: list[str] = []
+
+    # Per-page knowledge (from page personality)
+    if page and page.knowledge_base:
+        for k in page.knowledge_base[:8]:
+            content = k.get("content", "")[:200]
+            if content:
+                items.append(content)
+
+    # Org-level knowledge
     rows = await deps.session.execute(
         select(models.KnowledgeItem)
         .where(models.KnowledgeItem.org_id == deps.org_id)
         .order_by(models.KnowledgeItem.confidence.desc())
         .limit(8)
     )
-    return [f"{k.topic}: {k.content}" for k in rows.scalars().all()]
+    for k in rows.scalars().all():
+        items.append(f"{k.topic}: {k.content}")
+
+    return items
 
 
-async def _latest_style(deps: ResponderDeps, conv: models.Conversation) -> dict:
+async def _latest_style(deps: ResponderDeps, conv: models.Conversation, page: models.PageConnection | None) -> dict:
+    """Get style from per-page profile (preferred) or per-conversation analysis."""
+    # Prefer per-page style profile (built from ALL page conversations)
+    if page and page.style_profile and page.style_profile.get("summary", "") != "لم يتم بناء الأسلوب بعد (لا توجد ردود كافية)":
+        return page.style_profile
+
+    # Fallback to per-conversation analysis
     row = (
         await deps.session.execute(
             select(models.AnalysisResult).where(
@@ -125,11 +207,7 @@ async def draft_response(
     instructions: str = "",
     regenerate_of: models.AiResponse | None = None,
 ) -> models.AiResponse:
-    """Generate a draft AI response; returns the stored AiResponse row.
-
-    Raises ModelUnavailableError when no LLM is reachable — the caller
-    surfaces that honestly (response marked failed with a clear message).
-    """
+    """Generate a draft AI response; returns the stored AiResponse row."""
     if regenerate_of is None:
         resp = models.AiResponse(
             org_id=deps.org_id,
@@ -147,12 +225,17 @@ async def draft_response(
     if not await provider.available():
         resp.status = "failed"
         resp.provider = "none"
-        resp.error = "النموذج الذكي غير متاح — شغّل Ollama (qwen2.5) من خادمك"
+        resp.error = "النموذج الذكي غير متاح — تأكد من ضبط GEMINI_API_KEY أو OPENAI_API_KEY"
         await deps.session.commit()
         metrics.AI_INVOCATIONS.labels(provider="none", kind="response", status="unavailable").inc()
         raise ModelUnavailableError(resp.error)
 
     try:
+        # Load page connection for per-page personality
+        page = None
+        if conv.page_id:
+            page = await deps.session.get(models.PageConnection, conv.page_id)
+
         messages = list(
             (
                 await deps.session.execute(
@@ -162,31 +245,61 @@ async def draft_response(
                 )
             ).scalars().all()
         )
-        style = await _latest_style(deps, conv)
-        knowledge = await _collect_knowledge(deps)
+        style = await _latest_style(deps, conv, page)
+        knowledge = await _collect_knowledge(deps, page)
         query = " ".join(
             (m.text_normalized or m.text_raw)
             for m in messages[:8]
             if m.sender_type == "customer"
         )
-        
-        # Scrape store dynamically if query seems to be about products
+
+        # Governorate detection from customer messages
+        governorate = None
+        for m in messages:
+            if m.sender_type == "customer":
+                governorate = detect_governorate(m.text_raw or m.text_normalized or "")
+                if governorate:
+                    break
+
+        # Shipping calculation
+        shipping_info = None
+        if governorate:
+            # Try to extract cart total from messages
+            cart_total = 0.0
+            import re
+            for m in messages:
+                if m.sender_type == "customer":
+                    price_match = re.search(r"(\d+(?:[.,]\d+)?)", m.text_raw or "")
+                    if price_match:
+                        try:
+                            cart_total = float(price_match.group(1).replace(",", "."))
+                        except ValueError:
+                            pass
+            shipping_info = calculate_shipping(deps.settings, governorate, cart_total)
+
+        # Scrape store dynamically for product info
         from ..store.scraper import search_store
         store_url = deps.settings.store_url if hasattr(deps.settings, "store_url") else ""
         if store_url and len(query) > 3:
-            # We just use the query (or key nouns) to search the store
-            # In a real setup, we'd extract the actual product entity
-            scraped = await search_store(store_url, query[:50])
-            for p in scraped:
-                knowledge.insert(0, f"مخزون: {p.name} - السعر: {p.price}")
-                
+            try:
+                scraped = await search_store(store_url, query[:50])
+                for p in scraped:
+                    knowledge.insert(0, f"{p.name} — السعر: {p.price or 'غير محدد'}، الشحن: {p.shipping_price or 'مجاني'}، الحالة: {'متوفر' if p.in_stock else 'نفذ'}")
+            except Exception:
+                pass
+
         memory = await _retrieve_memory(deps, query)
+
+        # Build prompts with per-page personality
+        system_prompt = _build_system_prompt(style, page.knowledge_base if page else [])
+        user_prompt = _build_user_prompt(messages, style, knowledge, memory, instructions, governorate, shipping_info)
+
         started = time.monotonic()
         last_error = ""
         for attempt in range(2):
             res = await provider.complete(
-                system=SYSTEM_PROMPT,
-                user=_build_user_prompt(messages, style, knowledge, memory, instructions),
+                system=system_prompt,
+                user=user_prompt,
                 temperature=0.4 if attempt == 0 else 0.7,
                 max_tokens=1024,
                 kind="response",
@@ -195,24 +308,24 @@ async def draft_response(
             ok, reason = _validate_draft(draft, conv)
             if ok:
                 resp.text = draft
-                resp.provider = "ollama"
+                resp.provider = provider.name
                 resp.model = res.model
                 resp.status = "pending_approval"
                 resp.error = ""
-                metrics.AI_LATENCY.labels(provider="ollama").observe(time.monotonic() - started)
-                metrics.AI_INVOCATIONS.labels(provider="ollama", kind="response", status="ok").inc()
+                metrics.AI_LATENCY.labels(provider=provider.name).observe(time.monotonic() - started)
+                metrics.AI_INVOCATIONS.labels(provider=provider.name, kind="response", status="ok").inc()
                 await deps.session.commit()
                 return resp
             last_error = reason
         resp.status = "failed"
         resp.error = f"فشل توليد رد صالح: {last_error}"
-        metrics.AI_INVOCATIONS.labels(provider="ollama", kind="response", status="failed").inc()
+        metrics.AI_INVOCATIONS.labels(provider=provider.name, kind="response", status="failed").inc()
         await deps.session.commit()
         return resp
     except ModelUnavailableError:
         resp.status = "failed"
         resp.provider = "none"
-        resp.error = "النموذج الذكي غير متاح — شغّل Ollama (qwen2.5) من خادمك"
+        resp.error = "النموذج الذكي غير متاح — تأكد من ضبط GEMINI_API_KEY أو OPENAI_API_KEY"
         await deps.session.commit()
         raise
     except Exception as exc:
