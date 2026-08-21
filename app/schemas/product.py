@@ -28,8 +28,8 @@ class ProductCreate(BaseModel):
                 {
                     "name": "Jamdani Saree",
                     "price": "8500.00",
-                    "name_bn": "জামদানি শাড়ি",
-                    "description": "Authentic Dhaka Jamdani",
+                    "name_ar": "جلابية قطن مصري",
+                    "description": "Traditional Egyptian cotton galabiya",
                     "category": "Saree",
                     "color": "white & gold",
                     "material": "muslin",

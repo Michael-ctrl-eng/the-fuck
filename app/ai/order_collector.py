@@ -4,7 +4,7 @@ import json
 import re
 import logging
 
-from app.utils.phone import validate_bd_phone
+from app.utils.phone import validate_egyptian_phone
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def validate_order_data(data: dict) -> dict | None:
     """Validate extracted order data. Supports both single and multi-item orders."""
 
     # Required customer fields
-    required = ["customer_name", "customer_phone", "division", "district", "address_detail"]
+    required = ["customer_name", "customer_phone", "governorate", "city", "address_detail"]
     for field in required:
         if not data.get(field):
             logger.warning(f"Missing required order field: {field}")
@@ -52,8 +52,8 @@ def validate_order_data(data: dict) -> dict | None:
 
     # Validate phone
     phone = data["customer_phone"]
-    if not validate_bd_phone(phone):
-        logger.warning(f"Invalid BD phone number: {phone}")
+    if not validate_egyptian_phone(phone):
+        logger.warning(f"Invalid Egyptian phone number: {phone}")
         return None
 
     # Handle both formats:
@@ -83,7 +83,7 @@ def validate_order_data(data: dict) -> dict | None:
 
     # Set defaults
     data.setdefault("payment_method", "cod")
-    data.setdefault("upazila", "")
+    data.setdefault("area", "")
     data.setdefault("payment_phone_last2", "")
     data.setdefault("payment_trx_id", "")
 

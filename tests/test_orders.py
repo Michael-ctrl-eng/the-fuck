@@ -16,12 +16,12 @@ async def test_order(db_session, test_tenant, test_customer):
         tenant_id=test_tenant.id,
         customer_id=test_customer.id,
         order_number="ORD-260317-001",
-        customer_name="Karim Miah",
-        customer_phone="01912345678",
-        division="Dhaka",
-        district="Dhaka",
-        upazila="Dhanmondi",
-        address_detail="House 5, Road 10, Dhanmondi",
+        customer_name="Ahmed",
+        customer_phone="01012345678",
+        governorate="cairo",
+        city="Cairo",
+        area="Maadi",
+        address_detail="15 Road 9, Maadi, Cairo",
         payment_method="cod",
         subtotal=Decimal("1200.00"),
         delivery_charge=Decimal("60.00"),
@@ -73,10 +73,10 @@ class TestOrders:
         assert resp.status_code == 200
         data = resp.json()
         assert data["order_number"] == "ORD-260317-001"
-        assert data["customer_name"] == "Karim Miah"
-        assert data["division"] == "Dhaka"
+        assert data["customer_name"] == "Ahmed"
+        assert data["governorate"] == "cairo"
         assert len(data["items"]) == 1
-        assert data["items"][0]["product_name"] == "Cotton Saree"
+        assert data["items"][0]["product_name"] == "Cotton Galabiya"
 
     async def test_update_order_status_pending_to_confirmed(
         self, client, auth_headers, test_tenant, test_order

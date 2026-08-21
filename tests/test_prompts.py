@@ -13,11 +13,11 @@ class TestPrompts:
 
     def test_system_prompt_contains_language_rules(self):
         prompt = get_system_prompt("Test", "products", "auto")
-        assert "Bangla" in prompt
+        assert "Arabic" in prompt or "arabic" in prompt.lower()
 
     def test_system_prompt_contains_order_instructions(self):
         prompt = get_system_prompt("Test", "products", "auto")
-        assert "Division" in prompt
+        assert "Governorate" in prompt or "governorate" in prompt.lower()
         assert "COD" in prompt
 
     def test_product_context_empty(self):
@@ -27,8 +27,8 @@ class TestPrompts:
     def test_product_context_with_standard_products(self):
         products = [
             {
-                "name": "Cotton Saree",
-                "name_bn": "সুতি শাড়ি",
+                "name": "Cotton Galabiya",
+                "name_ar": "جلابية قطن",
                 "description": "Premium quality",
                 "price": 1500,
                 "discount_price": 1200,
@@ -38,10 +38,10 @@ class TestPrompts:
             },
         ]
         context = get_product_context(products)
-        assert "Cotton Saree" in context
-        assert "সুতি শাড়ি" in context
-        assert "৳1500" in context
-        assert "৳1200" in context
+        assert "Cotton Galabiya" in context
+        assert "جلابية قطن" in context
+        assert "1500" in context
+        assert "1200" in context
         assert "In Stock" in context
         assert "material: cotton" in context
 
@@ -58,7 +58,7 @@ class TestPrompts:
         ]
         context = get_product_context(products)
         assert "Samsung A15" in context
-        assert "৳18000" in context
+        assert "18000" in context
         assert "brand: Samsung" in context
         assert "RAM: 6GB" in context
 
@@ -101,4 +101,4 @@ class TestPrompts:
         ]
         context = get_product_context(products)
         assert "Random Item" in context
-        assert "৳100" in context
+        assert "100" in context

@@ -39,20 +39,20 @@ class TestProducts:
         assert data["attributes"]["RAM"] == "6GB"
         assert data["attributes"]["storage"] == "128GB"
 
-    async def test_create_product_bangla_attributes(self, client, auth_headers, test_tenant):
+    async def test_create_product_arabic_attributes(self, client, auth_headers, test_tenant):
         resp = await client.post(
             f"/api/tenants/{test_tenant.id}/products",
             json={
-                "name": "Jamdani Saree",
+                "name": "Cotton Galabiya",
                 "price": "5000.00",
-                "name_bn": "জামদানি শাড়ি",
-                "category": "Saree",
-                "material": "muslin",
+                "name_ar": "جلابية قطن",
+                "category": "Clothing",
+                "material": "cotton",
             },
             headers=auth_headers,
         )
         assert resp.status_code == 201
-        assert resp.json()["attributes"]["name_bn"] == "জামদানি শাড়ি"
+        assert resp.json()["attributes"]["name_ar"] == "جلابية قطن"
 
     async def test_create_food_product(self, client, auth_headers, test_tenant):
         """Food products with completely different attributes."""

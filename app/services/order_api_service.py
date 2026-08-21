@@ -132,9 +132,9 @@ def _fill_template(template_str: str, order: Order) -> dict:
     replacements = {
         "{{customer_name}}": order.customer_name or "",
         "{{customer_phone}}": order.customer_phone or "",
-        "{{division}}": order.division or "",
-        "{{district}}": order.district or "",
-        "{{upazila}}": order.upazila or "",
+        "{{governorate}}": getattr(order, "governorate", "") or "",
+        "{{city}}": getattr(order, "city", "") or "",
+        "{{area}}": getattr(order, "area", "") or "",
         "{{address_detail}}": order.address_detail or "",
         "{{payment_method}}": order.payment_method or "cod",
         "{{payment_phone_last2}}": order.payment_phone_last2 or "",

@@ -31,30 +31,30 @@ async def _send_email_notification(tenant: Tenant, order: Order) -> None:
 
     items_text = ""
     for item in order.items:
-        items_text += f"  - {item.product_name} x{item.quantity} = ৳{item.total_price}\n"
+        items_text += f"  - {item.product_name} x{item.quantity} = {item.total_price} EGP\n"
 
-    body = f"""নতুন অর্ডার পেয়েছেন! (New Order Received!)
+    body = f"""New Order Received! (تم استلام طلب جديد!)
 
 Order: {order.order_number}
 Customer: {order.customer_name}
 Phone: {order.customer_phone}
-Address: {order.address_detail}, {order.upazila or ''}, {order.district}, {order.division}
+Address: {order.address_detail}, {order.area or ''}, {order.city}, {order.governorate}
 Payment: {order.payment_method.upper()}
 
 Items:
 {items_text}
-Subtotal: ৳{order.subtotal}
-Delivery: ৳{order.delivery_charge}
-Total: ৳{order.total}
+Subtotal: {order.subtotal} EGP
+Delivery: {order.delivery_charge} EGP
+Total: {order.total} EGP
 
 ---
-Mama Sales Agent
+Raqib Agent
 """
 
     msg = MIMEMultipart()
     msg["From"] = settings.NOTIFICATION_FROM_EMAIL
     msg["To"] = tenant.business_email
-    msg["Subject"] = f"[{tenant.page_name}] New Order {order.order_number} - ৳{order.total}"
+    msg["Subject"] = f"[{tenant.page_name}] New Order {order.order_number} - {order.total} EGP"
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     try:

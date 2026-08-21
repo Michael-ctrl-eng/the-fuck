@@ -37,10 +37,10 @@ class TenantUpdate(BaseModel):
     business_phone: str | None = None
     business_email: str | None = None
     notification_pref: str | None = None
-    delivery_inside_dhaka: Decimal | None = None
-    delivery_outside_dhaka: Decimal | None = None
+    delivery_inside_cairo: Decimal | None = None
+    delivery_outside_cairo: Decimal | None = None
     free_delivery_above: Decimal | None = None
-    mfs_numbers: dict | None = None
+    payment_methods: dict | None = None
     order_api_config: dict | None = None
 
 
@@ -52,10 +52,10 @@ class TenantResponse(BaseModel):
     business_phone: str | None
     business_email: str | None
     notification_pref: str
-    delivery_inside_dhaka: Decimal | None = None
-    delivery_outside_dhaka: Decimal | None = None
+    delivery_inside_cairo: Decimal | None = None
+    delivery_outside_cairo: Decimal | None = None
     free_delivery_above: Decimal | None = None
-    mfs_numbers: dict | None = None
+    payment_methods: dict | None = None
     order_api_config: dict | None = None
     is_active: bool
     created_at: datetime

@@ -1,61 +1,59 @@
-"""Tests for BD phone number validation and normalization."""
+"""Tests for Egyptian phone number validation and normalization."""
 import pytest
 
-from app.utils.phone import normalize_bd_phone, validate_bd_phone
+from app.utils.phone import normalize_egyptian_phone, validate_egyptian_phone
 
 
-class TestPhoneValidation:
+class TestEgyptianPhoneValidation:
+    def test_valid_vodafone(self):
+        assert validate_egyptian_phone("01011234567") is True
 
-    def test_valid_grameenphone(self):
-        assert validate_bd_phone("01711234567") is True
+    def test_valid_etisalat(self):
+        assert validate_egyptian_phone("01111234567") is True
 
-    def test_valid_robi(self):
-        assert validate_bd_phone("01811234567") is True
+    def test_valid_orange(self):
+        assert validate_egyptian_phone("01211234567") is True
 
-    def test_valid_banglalink(self):
-        assert validate_bd_phone("01911234567") is True
-
-    def test_valid_teletalk(self):
-        assert validate_bd_phone("01511234567") is True
-
-    def test_valid_airtel(self):
-        assert validate_bd_phone("01611234567") is True
+    def test_valid_we(self):
+        assert validate_egyptian_phone("01511234567") is True
 
     def test_valid_with_country_code(self):
-        assert validate_bd_phone("8801711234567") is True
+        assert validate_egyptian_phone("201011234567") is True
 
-    def test_valid_with_plus_country_code(self):
-        assert validate_bd_phone("+8801711234567") is True
+    def test_valid_with_plus(self):
+        assert validate_egyptian_phone("+201011234567") is True
 
     def test_valid_with_spaces(self):
-        assert validate_bd_phone("017 1123 4567") is True
+        assert validate_egyptian_phone("010 1123 4567") is True
 
     def test_valid_with_dashes(self):
-        assert validate_bd_phone("017-1123-4567") is True
+        assert validate_egyptian_phone("010-1123-4567") is True
 
     def test_invalid_too_short(self):
-        assert validate_bd_phone("0171123456") is False
+        assert validate_egyptian_phone("0101123456") is False
 
     def test_invalid_too_long(self):
-        assert validate_bd_phone("017112345678") is False
+        assert validate_egyptian_phone("010112345678") is False
 
-    def test_invalid_wrong_prefix(self):
-        assert validate_bd_phone("02112345678") is False
+    def test_invalid_prefix(self):
+        assert validate_egyptian_phone("02012345678") is False
 
-    def test_invalid_not_starting_with_01(self):
-        assert validate_bd_phone("12345678901") is False
+    def test_invalid_letters(self):
+        assert validate_egyptian_phone("12345678901") is False
 
-    def test_invalid_empty(self):
-        assert validate_bd_phone("") is False
+    def test_empty(self):
+        assert validate_egyptian_phone("") is False
 
-    def test_normalize_with_country_code(self):
-        assert normalize_bd_phone("8801711234567") == "01711234567"
 
-    def test_normalize_with_plus(self):
-        assert normalize_bd_phone("+8801711234567") == "01711234567"
+class TestEgyptianPhoneNormalization:
+    def test_from_country_code(self):
+        assert normalize_egyptian_phone("201011234567") == "01011234567"
 
-    def test_normalize_already_normalized(self):
-        assert normalize_bd_phone("01711234567") == "01711234567"
+    def test_from_plus_country_code(self):
+        assert normalize_egyptian_phone("+201011234567") == "01011234567"
 
-    def test_normalize_with_spaces(self):
-        assert normalize_bd_phone("017 1123 4567") == "01711234567"
+    def test_already_normalized(self):
+        assert normalize_egyptian_phone("01011234567") == "01011234567"
+
+    def test_with_spaces(self):
+        assert normalize_egyptian_phone("010 1123 4567") == "01011234567"

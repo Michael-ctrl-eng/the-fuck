@@ -20,9 +20,9 @@ class OrderResponse(BaseModel):
     order_number: str
     customer_name: str
     customer_phone: str
-    division: str
-    district: str
-    upazila: str | None
+    governorate: str
+    city: str
+    area: str | None
     address_detail: str
     payment_method: str
     payment_phone_last2: str | None = None
@@ -70,9 +70,9 @@ class ManualOrderItemCreate(BaseModel):
 class ManualOrderCreate(BaseModel):
     customer_name: str
     customer_phone: str
-    division: str
-    district: str
-    upazila: str | None = None
+    governorate: str
+    city: str
+    area: str | None = None
     address_detail: str
     payment_method: str = "cod"
     delivery_charge: Decimal = Decimal("0")

@@ -93,7 +93,7 @@ async def test_tenant(db_session, test_user):
         fb_page_id="test_page_123",
         website_url="https://teststore.com",
         business_email="owner@teststore.com",
-        business_phone="01712345678",
+        business_phone="01012345678",
         notification_pref="email",
     )
     db_session.add(tenant)
@@ -107,15 +107,15 @@ async def test_products(db_session, test_tenant):
         Product(
             id=uuid.uuid4(),
             tenant_id=test_tenant.id,
-            name="Cotton Saree",
+            name="Cotton Galabiya",
             price=Decimal("1500.00"),
             source="manual",
             attributes={
-                "name_bn": "সুতি শাড়ি",
-                "description": "Premium quality cotton saree",
+                "name_ar": "جلابية قطن",
+                description: "Premium quality cotton galabiya",
                 "discount_price": 1200,
                 "category": "Clothing",
-                "sku": "SAR-001",
+                "sku": "GAL-001",
                 "stock_status": "in_stock",
                 "material": "cotton",
             },
@@ -123,12 +123,12 @@ async def test_products(db_session, test_tenant):
         Product(
             id=uuid.uuid4(),
             tenant_id=test_tenant.id,
-            name="Silk Punjabi",
+            name="Leather Bag",
             price=Decimal("2500.00"),
             source="manual",
             attributes={
-                "name_bn": "সিল্ক পাঞ্জাবি",
-                "description": "Elegant silk punjabi for men",
+                "name_ar": "حقيبة جلد",
+                "description": "Elegant leather bag",
                 "category": "Clothing",
                 "sku": "PUN-001",
                 "stock_status": "in_stock",
@@ -163,10 +163,10 @@ async def test_customer(db_session, test_tenant):
         id=uuid.uuid4(),
         tenant_id=test_tenant.id,
         fb_psid="test_psid_123",
-        name="Karim Miah",
-        phone="01912345678",
-        division="Dhaka",
-        district="Dhaka",
+        name="Ahmed",
+        phone="01012345678",
+        governorate="cairo",
+        city="Cairo",
     )
     db_session.add(customer)
     await db_session.commit()
@@ -189,13 +189,13 @@ async def test_conversation(db_session, test_tenant, test_customer):
             id=uuid.uuid4(),
             conversation_id=conv.id,
             role="customer",
-            content="আপনাদের শাড়ি কত?",
+            content="What products do you have?",
         ),
         Message(
             id=uuid.uuid4(),
             conversation_id=conv.id,
             role="assistant",
-            content="আমাদের সুতি শাড়ি ৳১,২০০ (ডিসকাউন্ট প্রাইস)। আপনি কি অর্ডার করতে চান?",
+            content="We have cotton galabiyas for 1200 EGP (discounted). Would you like to order?",
         ),
     ]
     for m in messages:

@@ -185,7 +185,7 @@ async def import_csv(
                 errors.append(f"Row {i}: Missing product name")
                 continue
 
-            price_str = row.get(price_col, "0").strip().replace(",", "").replace("৳", "").replace("$", "")
+            price_str = row.get(price_col, "0").strip().replace(",", "").replace("EGP", "").replace("ج.م", "").replace("$", "")
             try:
                 price = Decimal(price_str)
             except Exception:

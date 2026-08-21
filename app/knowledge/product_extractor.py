@@ -186,9 +186,9 @@ def _try_html_regex(soup: BeautifulSoup, url: str) -> dict | None:
     text = soup.get_text()
 
     # Extract price
-    prices = re.findall(r"৳\s*([\d,]+\.?\d*)", text)
+    prices = re.findall(r"(?:EGP|E£|ج\.م)\s*([\d,]+\.?\d*)", text)
     if not prices:
-        prices = re.findall(r"(?:BDT|Tk\.?)\s*([\d,]+\.?\d*)", text)
+        prices = re.findall(r"([\d,]+\.?\d*)\s*(?:EGP|E£|ج\.م)", text)
     if not prices:
         return None
 

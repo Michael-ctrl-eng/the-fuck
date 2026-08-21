@@ -36,8 +36,8 @@ class TestSystemFlow:
 
         # 3. Add products manually
         resp = await client.post(f"/api/tenants/{tenant_id}/products", json={
-            "name": "Katan Saree",
-            "name_bn": "কাতান শাড়ি",
+            "name": "Cotton Galabiya",
+            "name_ar": "جلابية قطن",
             "price": "8000.00",
             "category": "Premium",
         }, headers=headers)
@@ -78,15 +78,15 @@ class TestSystemFlow:
             tenant_id=test_tenant.id,
             customer_id=test_customer.id,
             conversation_id=None,
-            customer_name="Fatima Akter",
-            customer_phone="01812345678",
-            division="Dhaka",
-            district="Gazipur",
-            upazila="Gazipur Sadar",
-            address_detail="Tongi Industrial Area, Block C",
+            customer_name="Fatima",
+            customer_phone="01012345678",
+            governorate="cairo",
+            city="Giza",
+            area="Dokki",
+            address_detail="23 Mohandessin, Dokki, Giza",
             payment_method="cod",
             items=[{
-                "product_name": "Silk Punjabi",
+                "product_name": "Leather Bag",
                 "quantity": 2,
                 "unit_price": "2500.00",
             }],

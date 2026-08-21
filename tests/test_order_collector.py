@@ -14,50 +14,50 @@ class TestOrderCollector:
 
 ```json
 {"action": "create_order", "order_data": {
-  "product_name": "Cotton Saree",
+  "product_name": "Cotton Galabiya",
   "quantity": 2,
-  "customer_name": "Fatima Begum",
-  "customer_phone": "01712345678",
-  "division": "Dhaka",
-  "district": "Dhaka",
-  "upazila": "Dhanmondi",
-  "address_detail": "House 5, Road 10",
+  "customer_name": "Fatima",
+  "customer_phone": "01012345678",
+  "governorate": "cairo",
+  "city": "Cairo",
+  "area": "Maadi",
+  "address_detail": "15 Road 9, Maadi",
   "payment_method": "cod"
 }}
 ```'''
         order = extract_order_from_response(response)
         assert order is not None
-        assert order["product_name"] == "Cotton Saree"
+        assert order["product_name"] == "Cotton Galabiya"
         assert order["quantity"] == 2
-        assert order["customer_name"] == "Fatima Begum"
+        assert order["customer_name"] == "Fatima"
         assert order["payment_method"] == "cod"
 
     def test_extract_order_missing_fields(self):
         response = '''```json
 {"action": "create_order", "order_data": {
-  "product_name": "Saree",
+  "product_name": "Galabiya",
   "customer_name": "Test"
 }}
 ```'''
         order = extract_order_from_response(response)
-        assert order is None  # Missing required fields
+        assert order is None
 
     def test_extract_order_invalid_phone(self):
         response = '''```json
 {"action": "create_order", "order_data": {
-  "product_name": "Saree",
+  "product_name": "Galabiya",
   "customer_name": "Test",
   "customer_phone": "12345",
-  "division": "Dhaka",
-  "district": "Dhaka",
+  "governorate": "cairo",
+  "city": "Cairo",
   "address_detail": "House 1"
 }}
 ```'''
         order = extract_order_from_response(response)
-        assert order is None  # Invalid phone
+        assert order is None
 
     def test_extract_no_order(self):
-        response = "Our Cotton Saree costs ৳1200. Would you like to order?"
+        response = "Our Galabiya costs 450 EGP. Would you like to order?"
         order = extract_order_from_response(response)
         assert order is None
 
@@ -65,7 +65,7 @@ class TestOrderCollector:
         response = '''Your order is confirmed! Thank you!
 
 ```json
-{"action": "create_order", "order_data": {"product_name": "Saree"}}
+{"action": "create_order", "order_data": {"product_name": "Galabiya"}}
 ```'''
         cleaned = clean_response_for_customer(response)
         assert "json" not in cleaned
@@ -80,15 +80,15 @@ class TestOrderCollector:
     def test_extract_order_defaults(self):
         response = '''```json
 {"action": "create_order", "order_data": {
-  "product_name": "Silk Punjabi",
-  "customer_name": "Rahim",
-  "customer_phone": "01812345678",
-  "division": "Chittagong",
-  "district": "Chittagong",
-  "address_detail": "Agrabad C/A"
+  "product_name": "Leather Bag",
+  "customer_name": "Omar",
+  "customer_phone": "01112345678",
+  "governorate": "alexandria",
+  "city": "Alexandria",
+  "address_detail": "Corniche Road"
 }}
 ```'''
         order = extract_order_from_response(response)
         assert order is not None
-        assert order["quantity"] == 1  # Default
-        assert order["payment_method"] == "cod"  # Default
+        assert order["quantity"] == 1
+        assert order["payment_method"] == "cod"

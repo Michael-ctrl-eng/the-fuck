@@ -159,7 +159,7 @@ Website content:
                 )
                 await db.commit()
                 count += 1
-                logger.info(f"Saved product: {name} ৳{price}")
+                logger.info(f"Saved product: {name} {price} EGP")
             except Exception as e:
                 await db.rollback()
                 logger.warning(f"Skipped product '{p.get('name', '?')}': {e}")

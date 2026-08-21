@@ -20,7 +20,7 @@ def _order_response(o) -> OrderResponse:
     return OrderResponse(
         id=str(o.id), order_number=o.order_number,
         customer_name=o.customer_name, customer_phone=o.customer_phone,
-        division=o.division, district=o.district, upazila=o.upazila,
+        governorate=o.governorate, city=o.city, area=o.area,
         address_detail=o.address_detail, payment_method=o.payment_method,
         payment_phone_last2=o.payment_phone_last2,
         payment_trx_id=o.payment_trx_id,
@@ -69,18 +69,18 @@ async def create_manual_order(
             fb_psid=f"manual-{uuid.uuid4()}",
             name=req.customer_name,
             phone=req.customer_phone,
-            division=req.division,
-            district=req.district,
-            upazila=req.upazila,
+            governorate=req.governorate,
+            city=req.city,
+            area=req.area,
             address_detail=req.address_detail,
         )
         db.add(customer)
         await db.flush()
     else:
         customer.name = req.customer_name
-        customer.division = req.division
-        customer.district = req.district
-        customer.upazila = req.upazila
+        customer.governorate = req.governorate
+        customer.city = req.city
+        customer.area = req.area
         customer.address_detail = req.address_detail
 
     items = [
@@ -99,9 +99,9 @@ async def create_manual_order(
         conversation_id=None,
         customer_name=req.customer_name,
         customer_phone=req.customer_phone,
-        division=req.division,
-        district=req.district,
-        upazila=req.upazila,
+        governorate=req.governorate,
+        city=req.city,
+        area=req.area,
         address_detail=req.address_detail,
         payment_method=req.payment_method,
         items=items,
@@ -202,7 +202,7 @@ async def update_payment_info(
     tenant=Depends(get_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update payment verification info (bKash/Nagad last 2 digits or trx ID)."""
+    """Update payment verification info (Vodafone Cash/Instapay last 2 digits or trx ID)."""
     order = await order_service.get_order_by_id(db, tenant.id, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")

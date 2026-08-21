@@ -9,9 +9,9 @@ class CustomerResponse(BaseModel):
     id: str
     name: Optional[str] = None
     phone: Optional[str] = None
-    division: Optional[str] = None
-    district: Optional[str] = None
-    upazila: Optional[str] = None
+    governorate: Optional[str] = None
+    city: Optional[str] = None
+    area: Optional[str] = None
     address_detail: Optional[str] = None
     created_at: datetime
     orders_count: int = 0
@@ -31,7 +31,7 @@ class CustomerListResponse(BaseModel):
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
-    division: Optional[str] = None
-    district: Optional[str] = None
-    upazila: Optional[str] = None
+    governorate: Optional[str] = None
+    city: Optional[str] = None
+    area: Optional[str] = None
     address_detail: Optional[str] = None

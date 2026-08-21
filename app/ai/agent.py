@@ -48,6 +48,15 @@ async def process_customer_message(
         if transcribed:
             message_text = transcribed
 
+    # 0.5. Analyze product images if present
+    vision_results = []
+    if media_urls:
+        vision_results = await _analyze_images(media_urls, tenant)
+        if vision_results and not message_text.strip():
+            # Customer sent only an image — ask what they need
+            names = ", ".join(v.product_name for v in vision_results if v.product_name)
+            message_text = f"إيه المنتج ده؟ {names}" if names else "عايز أعرف عن المنتج ده"
+
     # 1. Get or create customer
     customer = await _get_or_create_customer(
         db, tenant.id, sender_psid, customer_name, channel
@@ -102,7 +111,14 @@ async def process_customer_message(
     # Add image context if present
     user_content = message_text
     if media_urls:
-        user_content += f"\n\n[العميل بعت صور: {', '.join(media_urls[:3])}]"
+        if vision_results:
+            vision_text = "\n".join(
+                f"- صورة: {v.product_name} ({v.category}) {v.color} — {v.details}"
+                for v in vision_results if v.product_name
+            )
+            user_content += f"\n\n[العميل بعت صور. تحليل الصور:]\n{vision_text}"
+        else:
+            user_content += f"\n\n[العميل بعت صور: {', '.join(media_urls[:3])}]"
 
     llm_messages.append({"role": "user", "content": user_content})
 
@@ -160,13 +176,34 @@ async def _transcribe_audio(audio_urls: list[str]) -> str | None:
     """Transcribe voice notes using faster-whisper (local, free)."""
     try:
         from app.services.transcription import transcribe_url
-        for url in audio_urls[:1]:  # transcribe first voice note only
+        for url in audio_urls[:1]:
             text = await transcribe_url(url)
             if text:
                 return text
     except Exception as e:
         logger.warning(f"Voice transcription failed: {e}")
     return None
+
+
+async def _analyze_images(media_urls: list[str], tenant: Tenant) -> list:
+    """Analyze product images using Gemini Vision (free)."""
+    from app.config import get_settings
+    from app.services.vision import analyze_product_image
+
+    settings = get_settings()
+    api_key = settings.GEMINI_API_KEY
+    if not api_key:
+        return []
+
+    results = []
+    for url in media_urls[:3]:
+        try:
+            result = await analyze_product_image(url, api_key)
+            if result:
+                results.append(result)
+        except Exception as e:
+            logger.warning(f"Vision analysis failed for {url}: {e}")
+    return results
 
 
 async def _get_or_create_customer(

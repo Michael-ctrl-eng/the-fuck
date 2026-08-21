@@ -2,9 +2,9 @@
 
 The LLM reads the tree TOC (titles + summaries — small, ~200 tokens)
 and picks which nodes to fetch. This handles:
-- Bangla, Banglish, English queries
+- Arabic (Egyptian), English queries
 - Typos and spelling variations
-- Synonyms (atta = flour = গমের আটা)
+- Synonyms
 
 Cost: ~50-100 tokens for TOC navigation (just returns node numbers)
 """

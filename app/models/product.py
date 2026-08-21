@@ -29,7 +29,7 @@ class Product(Base):
     # Examples: {"color": "red", "size": "XL", "weight": "500g", "flavor": "chocolate",
     #            "brand": "Samsung", "RAM": "8GB", "category": "Electronics",
     #            "description": "...", "sku": "ABC-123", "stock_status": "in_stock",
-    #            "image_url": "https://...", "discount_price": 1200, "name_bn": "বাংলা নাম"}
+    #            "image_url": "https://...", "discount_price": 1200, "name_ar": "اسم عربي"}
     attributes: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())

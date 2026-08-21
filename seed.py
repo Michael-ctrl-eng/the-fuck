@@ -1,4 +1,4 @@
-"""Seed the database with a test user, tenant, and sample Bangladeshi products."""
+"""Seed the database with a test user, tenant, and sample Egyptian products."""
 import asyncio
 import uuid
 from decimal import Decimal
@@ -12,107 +12,64 @@ from app.utils.security import hash_password
 
 async def seed():
     async with async_session() as db:
-        # Create test user
         user = User(
             id=uuid.uuid4(),
-            name="Jubair",
-            email="jubair@test.com",
+            name="Admin",
+            email="admin@raqib.app",
             hashed_password=hash_password("test123"),
         )
         db.add(user)
         await db.flush()
 
-        # Create tenant
         tenant = Tenant(
             id=uuid.uuid4(),
             owner_id=user.id,
-            page_name="Mama Fashion House",
-            fb_page_id="mama_fashion_123",
-            website_url="https://mamafashion.com",
-            business_email="jubair@test.com",
-            business_phone="01712345678",
+            page_name="Egyptian Fashion Store",
+            fb_page_id="eg_fashion_123",
+            website_url="https://example.com",
+            business_email="admin@raqib.app",
+            business_phone="01012345678",
             notification_pref="email",
         )
         db.add(tenant)
         await db.flush()
 
-        # Bangladeshi products — each with different attribute formats
         products = [
-            # Sarees — with material, color, origin
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Jamdani Saree", price=Decimal("8500.00"), attributes={
-                    "name_bn": "জামদানি শাড়ি", "description": "Authentic Dhaka Jamdani saree with traditional muslin weave.",
-                    "discount_price": 7200, "category": "Saree", "sku": "SAR-JAM-001",
-                    "stock_status": "in_stock", "material": "muslin", "color": "white & gold", "origin": "Dhaka",
+                name="Egyptian Cotton Galabiya", price=Decimal("450.00"), attributes={
+                    "name_ar": "جلابية قطن مصري", "description": "Traditional Egyptian cotton galabiya.",
+                    "discount_price": 380, "category": "Clothing", "sku": "GAL-001",
+                    "stock_status": "in_stock", "material": "cotton", "color": "white",
                 }),
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Cotton Tant Saree", price=Decimal("1500.00"), attributes={
-                    "name_bn": "সুতি তাঁত শাড়ি", "description": "Lightweight cotton tant saree for daily wear.",
-                    "discount_price": 1200, "category": "Saree", "sku": "SAR-TAN-001",
-                    "stock_status": "in_stock", "material": "cotton", "origin": "Tangail",
+                name="Handmade Khayamiya Wall Art", price=Decimal("1200.00"), attributes={
+                    "name_ar": "خدامية يدوية", "description": "Traditional Egyptian tentmaker patchwork.",
+                    "category": "Home Decor", "sku": "KHA-001",
+                    "stock_status": "in_stock", "material": "cotton", "size": "90x90 cm",
                 }),
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Silk Katan Saree", price=Decimal("12000.00"), attributes={
-                    "name_bn": "সিল্ক কাতান শাড়ি", "description": "Premium Rajshahi silk with golden zari border.",
-                    "category": "Saree", "sku": "SAR-KAT-001", "stock_status": "in_stock",
-                    "material": "silk", "color": "red & gold", "origin": "Rajshahi",
+                name="Papyrus Scroll - Pharaohs", price=Decimal("250.00"), attributes={
+                    "name_ar": "بردي فرعون", "description": "Hand-painted papyrus scroll.",
+                    "discount_price": 200, "category": "Art", "sku": "PAP-001",
+                    "stock_status": "in_stock", "material": "papyrus",
                 }),
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Muslin Saree", price=Decimal("15000.00"), attributes={
-                    "name_bn": "মসলিন শাড়ি", "description": "Dhakai muslin, ultra-soft. Heritage craft.",
-                    "discount_price": 13500, "category": "Saree", "sku": "SAR-MUS-001",
-                    "stock_status": "limited", "material": "muslin", "origin": "Dhaka",
-                }),
-
-            # Punjabis — with size info
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Silk Punjabi", price=Decimal("3500.00"), attributes={
-                    "name_bn": "সিল্ক পাঞ্জাবি", "description": "Elegant silk punjabi for Eid.",
-                    "discount_price": 2800, "category": "Punjabi", "sku": "PUN-SIL-001",
-                    "stock_status": "in_stock", "material": "silk", "sizes": "M, L, XL, XXL",
+                name="Sterling Silver Cartouche", price=Decimal("800.00"), attributes={
+                    "name_ar": "كرتوش فضة", "description": "Personalized Egyptian cartouche necklace.",
+                    "category": "Jewelry", "sku": "CAR-001",
+                    "stock_status": "in_stock", "material": "sterling silver",
                 }),
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Cotton Panjabi", price=Decimal("1200.00"), attributes={
-                    "name_bn": "সুতি পাঞ্জাবি", "description": "Casual cotton panjabi. Multiple colors.",
-                    "category": "Punjabi", "stock_status": "in_stock", "material": "cotton",
-                    "sizes": "S, M, L, XL", "colors": "white, blue, green",
+                name="Egyptian Leather Bag", price=Decimal("650.00"), attributes={
+                    "name_ar": "حقيبة جلد مصري", "description": "Handcrafted leather shoulder bag.",
+                    "discount_price": 550, "category": "Accessories", "sku": "BAG-001",
+                    "stock_status": "in_stock", "material": "leather", "color": "brown",
                 }),
             Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Fatua", price=Decimal("900.00"), attributes={
-                    "name_bn": "ফতুয়া", "description": "Traditional fatua with embroidery.",
-                    "category": "Punjabi", "stock_status": "in_stock", "material": "cotton blend",
-                }),
-
-            # Home & Accessories — varied attributes
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Nakshi Kantha", price=Decimal("2500.00"), attributes={
-                    "name_bn": "নকশি কাঁথা", "description": "Handstitched nakshi kantha. Perfect gift.",
-                    "category": "Home Decor", "stock_status": "in_stock",
-                    "size": "60x90 inches", "craft": "hand-embroidered",
-                }),
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Leather Wallet", price=Decimal("800.00"), attributes={
-                    "name_bn": "চামড়ার মানিব্যাগ", "description": "Genuine leather wallet from Old Dhaka.",
-                    "discount_price": 650, "category": "Accessories", "stock_status": "in_stock",
-                    "material": "genuine leather", "card_slots": 8, "color": "brown",
-                }),
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Jute Bag", price=Decimal("450.00"), attributes={
-                    "name_bn": "পাটের ব্যাগ", "description": "Eco-friendly jute tote with traditional prints.",
-                    "category": "Accessories", "stock_status": "in_stock",
-                    "material": "jute", "eco_friendly": True,
-                }),
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Brass Jewelry Set", price=Decimal("1800.00"), attributes={
-                    "name_bn": "পিতলের গহনা সেট", "description": "Traditional brass necklace and earring set.",
-                    "discount_price": 1500, "category": "Jewelry", "stock_status": "in_stock",
-                    "material": "brass", "finish": "oxidized", "pieces": "necklace + earrings",
-                }),
-            Product(id=uuid.uuid4(), tenant_id=tenant.id, source="manual",
-                name="Nokshi Slipper", price=Decimal("550.00"), attributes={
-                    "name_bn": "নকশি স্লিপার", "description": "Hand-decorated leather slipper with nokshi art.",
-                    "category": "Footwear", "stock_status": "out_of_stock",
-                    "material": "leather", "sizes": "6, 7, 8, 9, 10",
+                name="Copper Coffee Set (Finjan)", price=Decimal("950.00"), attributes={
+                    "name_ar": "طقم قهوة نحاس", "description": "Traditional Egyptian copper coffee set with 6 finjan cups.",
+                    "category": "Kitchen", "sku": "COF-001",
+                    "stock_status": "in_stock", "material": "copper", "pieces": "pot + 6 cups",
                 }),
         ]
 
@@ -124,9 +81,9 @@ async def seed():
         print(f"\n{'='*50}")
         print(f"Seed completed!")
         print(f"{'='*50}")
-        print(f"User email:    jubair@test.com")
+        print(f"User email:    admin@raqib.app")
         print(f"User password: test123")
-        print(f"Tenant:        Mama Fashion House")
+        print(f"Tenant:        Egyptian Fashion Store")
         print(f"Tenant ID:     {tenant.id}")
         print(f"Products:      {len(products)} items seeded")
         print(f"{'='*50}")

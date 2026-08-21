@@ -7,8 +7,8 @@ Tree structure:
   root
   ├── [Products]
   │   ├── Category: Honey
-  │   │   ├── Sundarban Honey 1kg — ৳2200 ✅
-  │   │   ├── Crystal Honey 1kg — ৳1000 ✅
+  │   │   ├── Sundarban Honey 1kg — 2200 EGP ✅
+  │   │   ├── Crystal Honey 1kg — 1000 EGP ✅
   │   │   └── ...
   │   ├── Category: Dates
   │   │   └── ...
@@ -107,11 +107,11 @@ def _build_product_nodes(products: list[Product]) -> list[dict]:
 
             # Build rich text for this product
             lines = [f"# {p.name}"]
-            if attrs.get("name_bn"):
-                lines.append(f"Bengali: {attrs['name_bn']}")
-            lines.append(f"Price: ৳{p.price}")
+            if attrs.get("name_ar"):
+                lines.append(f"Arabic: {attrs['name_ar']}")
+            lines.append(f"Price: {p.price} EGP")
             if attrs.get("discount_price"):
-                lines.append(f"Discount Price: ৳{attrs['discount_price']}")
+                lines.append(f"Discount Price: {attrs['discount_price']} EGP")
             lines.append(f"Stock: {stock_icon} {stock}")
             if attrs.get("description"):
                 lines.append(f"Description: {attrs['description']}")
@@ -119,7 +119,7 @@ def _build_product_nodes(products: list[Product]) -> list[dict]:
                 lines.append(f"PRODUCT LINK (share with customer): {attrs['url']}")
 
             # Add all other attributes
-            skip = {"name_bn", "category", "stock_status", "description",
+            skip = {"name_ar", "category", "stock_status", "description",
                     "discount_price", "image_url", "url", "sku", "brand"}
             for k, v in attrs.items():
                 if k not in skip and v is not None and v != "":
@@ -128,11 +128,11 @@ def _build_product_nodes(products: list[Product]) -> list[dict]:
             text = "\n".join(lines)
 
             child_nodes.append({
-                "title": f"{p.name} — ৳{p.price} {stock_icon}",
+                "title": f"{p.name} — {p.price} EGP {stock_icon}",
                 "node_id": str(node_id).zfill(4),
                 "text": text,
                 "line_num": node_id,
-                "summary": f"{p.name}, ৳{p.price}, {stock}. {(attrs.get('description') or '')[:100]}",
+                "summary": f"{p.name}, {p.price} EGP, {stock}. {(attrs.get('description') or '')[:100]}",
                 "_product_id": str(p.id),
                 "_type": "product",
             })
