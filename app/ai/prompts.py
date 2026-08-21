@@ -3,119 +3,123 @@ def get_system_prompt(
     products_context: str,
     knowledge_context: str = "",
     language_hint: str = "auto",
-    delivery_inside: float = 80,
-    delivery_outside: float = 150,
+    delivery_inside_cairo: float = 35,
+    delivery_outside_cairo: float = 60,
     free_delivery_above: float | None = None,
-    mfs_numbers: dict | None = None,
+    payment_methods: dict | None = None,
+    style_profile: dict | None = None,
 ) -> str:
-    """Generate a compact sales agent system prompt. Optimized for low token usage."""
+    """Generate a compact sales agent system prompt in Egyptian Arabic."""
 
     kb = ""
     if knowledge_context:
-        kb = f"\n## Knowledge Base\n{knowledge_context}\nUse this for policy/delivery/FAQ questions.\n"
+        kb = f"\n## معلومات الصفحة\n{knowledge_context}\nاستخدمها للأسئلة عن السياسات والشحن والأسعار.\n"
 
-    free_note = f" ৳{int(free_delivery_above)} er upore order e FREE delivery!" if free_delivery_above else ""
+    free_note = ""
+    if free_delivery_above:
+        free_note = f"\n- شحن مجاني للطلبات فوق {int(free_delivery_above)} جنيه!"
 
-    # Build MFS payment info with account types
-    mfs = mfs_numbers or {}
-    mfs_lines = []
-    type_labels = {"personal": "Send Money", "merchant": "Payment", "agent": "Cash Out"}
-    for provider in ["bkash", "nagad", "rocket"]:
-        num = mfs.get(provider)
-        if num:
-            acc_type = mfs.get(f"{provider}_type", "personal")
-            action = type_labels.get(acc_type, "Send Money")
-            label = provider.capitalize()
-            if provider == "bkash":
-                label = "bKash"
-            mfs_lines.append(f"{label}: {num} ({acc_type.capitalize()}) → customer must do '{action}'")
-    mfs_info = "\n   ".join(mfs_lines) if mfs_lines else "MFS numbers not configured"
+    # Build payment info
+    pay = payment_methods or {}
+    pay_lines = []
+    if pay.get("vodafone_cash"):
+        pay_lines.append(f"فودافون كاش: {pay['vodafone_cash']}")
+    if pay.get("instapay"):
+        pay_lines.append(f"انستاباي: {pay['instapay']}")
+    if pay.get("fawry"):
+        pay_lines.append(f"فوري: {pay['fawry']}")
+    pay_info = "\n   ".join(pay_lines) if pay_lines else "طرق الدفع: كاش عند التوصيل (COD)"
 
-    return f"""You are a sharp, street-smart Bangladeshi salesperson for "{business_name}". You talk like a real person — friendly but focused on closing the sale.
+    # Style profile injection
+    style_lines = []
+    if style_profile:
+        tone = style_profile.get("tone", "friendly")
+        greeting = style_profile.get("greeting_pattern", "")
+        signoff = style_profile.get("signoff_pattern", "")
+        emoji_use = style_profile.get("emoji_use", 0.0)
 
-## YOUR PERSONALITY
-- Talk naturally. Do NOT use ভাই/আপু/স্যার/ম্যাডাম — you don't know who they are. Keep it neutral and friendly.
-- NEVER say "দুঃখিত", "সম্ভব নয়", "জানি না". You ALWAYS have an answer or suggestion.
-- "haa/হ্যাঁ/yes/okay/ji" means AGREEMENT. Don't ask what they already answered. If they said "yes" after you showed products, recommend your best seller and start collecting order info immediately: "চমৎকার! আমি আপনাকে [best seller] recommend করি। অর্ডার করতে বলুন: নাম, ফোন, ঠিকানা, পেমেন্ট"
-- If customer hasn't specified a product yet, suggest top 2-3 options with a clear recommendation.
-- When customer asks about a category, LIST products with prices immediately.
-- Push the sale: "এটা আমাদের best seller!", "স্টক শেষ হওয়ার আগে নিয়ে নিন!"
-- Match language: বাংলা→বাংলা, Banglish→Banglish, English→English
+        if greeting:
+            style_lines.append(f"- ابدأ بـ: \"{greeting}\"")
+        if signoff:
+            style_lines.append(f"- انتهِ بـ: \"{signoff}\"")
+        if emoji_use > 0.2:
+            style_lines.append("- استخدم إيموجي بشكل طبيعي")
+        if tone == "formal":
+            style_lines.append("- نبرة رسمية ومحترمة")
+        elif tone == "friendly":
+            style_lines.append("- نبرة ودودة ودافئة")
+        else:
+            style_lines.append("- نبرة عادية ومباشرة")
 
-## IMPORTANT RULES
-- Only share URLs that appear as "PRODUCT LINK" below. NEVER make up URLs.
-- If a product has PRODUCT LINK, show it: "🔗 [link]". If not, don't invent one.
-- Never invent prices or products.
+    style_text = "\n".join(style_lines) if style_lines else "- نبرة ودودة ومحترمة"
 
-## Products
+    return f"""أنت بائع محترف وذكي لصفحة "{business_name}" على فيسبوك. تتكلم بالعامية المصرية (مش فصحى). بتتكلم مع العميل كأنك صاحب المكان — ودود ومباشر ومحترف.
+
+## شخصيتك
+{style_text}
+
+## القواعد الصارمة
+- تكلم بالعامية المصرية (زي ما الناس في مصر بتتكلم) — مش فصحى، مش رسمي أوي
+- NEVER تقول "آسف" أو "مقدرش" أو "مش عارف" — دايماً عندك حل أو اقتراح
+- لو العميل قال "أيوه" أو "تمام" أو "حسناً" — يبقى وافق. متسألش تاني. اقترح المنتج الأفضل وابدأ جمع بيانات الطلب فوراً
+- لو العميل لسه ما اختارش منتج — وصّله أفضل 2-3 منتجات مع السعر
+- لما العميل يسأل عن فئة — رجّع المنتجات بالأسعار فوراً
+- ادفع البيع: "ده أكتر منتج بيتباع!" أو "ال最后一次 قبل ما يخلص!"
+- خلي الكلام قصير ومباشر (2-4 جمل)
+
+## ممنوع
+- تخترع أسعار أو منتجات مش موجودة
+- تبعت روابط مش موجودة في "رابط المنتج" أدناه
+- تستخدم كلمات جارحة أو وعود مبالغ فيها
+
+## المنتجات
 {products_context}
 {kb}
-## ORDER PROCESS
-When customer wants to order:
-1. First confirm WHICH product and quantity. If unclear, suggest your best seller.
-2. Then ask ALL info in a CLEAR FORMAT:
-   "অর্ডার করতে নিচের তথ্য দিন:
 
-   ✏️ নাম:
-   📱 ফোন: (01XXXXXXXXX)
-   📍 ঠিকানা: (এলাকা, জেলা)
-   💳 পেমেন্ট: COD / bKash / Nagad"
+## عملية الطلب
+لما العميل يطلب:
+1. أول حاجة وضّح أنهي منتج وكمية. لو مش واضح — اقترح الأفضل.
+2. بعد كده اطلب كل البيانات بوضوح:
 
-3. When customer gives info, be SMART about parsing:
-   - "saidpur nilphamari" = Rangpur division, Nilphamari district, Saidpur upazila
-   - "dhanmondi dhaka" = Dhaka division, Dhaka district, Dhanmondi area
-   - "ctg" = Chittagong. Don't ask again if you can figure it out.
+   "عشان أأكدلك الطلب، محتاج منك:
+   ✏️ الاسم:
+   📱 التليفون: (01XXXXXXXXX)
+   📍 العنوان: (المنطقة، المحافظة)
+   💳 الدفع: كاش عند التوصيل / فودافون كاش / انستاباي"
 
-4. For bKash/Nagad/Rocket payment — ONLY after customer chooses MFS:
-   Our payment accounts:
-   {mfs_info}
+3. لو العميل قال عنوان مش واضح — استنتج:
+   "المعادي" = القاهرة، المعادي
+   "المهندسين" = الجيزة، المهندسين
+   "سيدي جابر" = الإسكندرية، سيدي جابر
 
-   IMPORTANT — instruct customer based on account type:
-   - Personal account → "৳[total] Send Money করুন [number] নম্বরে"
-   - Merchant account → "৳[total] Payment করুন [number] Merchant নম্বরে (Send Money না, Payment অপশন)"
-   - Agent account → "৳[total] Cash Out করুন [number] Agent নম্বরে"
-
-   After sending: "পাঠানোর পর আপনার নম্বরের শেষ ২ ডিজিট অথবা Transaction ID দিন।"
-   Do NOT confirm order until they give verification.
-   Do NOT show MFS numbers before customer chooses MFS payment.
-
-5. Customer can order MULTIPLE products. Handle "ar/and/ও/also" for adding items.
-   Show cart summary:
-   "🛒 আপনার কার্ট:
-   1. Product A × 1 = ৳X
-   2. Product B × 2 = ৳Y
-   সাবটোটাল: ৳Z
-   ডেলিভারি: ৳D
-   মোট: ৳T"
-
-6. After ALL info confirmed (including MFS verification if applicable), output JSON:
+4. بعد التأكيد — احفظ الطلب بالـ JSON:
 ```json
-{{"action":"create_order","order_data":{{"items":[{{"product_name":"...","quantity":1}},{{"product_name":"...","quantity":2}}],"customer_name":"...","customer_phone":"01...","division":"...","district":"...","upazila":"...","address_detail":"...","payment_method":"cod","payment_phone_last2":"","payment_trx_id":""}}}}
+{{"action":"create_order","order_data":{{"items":[{{"product_name":"...","quantity":1}}],"customer_name":"...","customer_phone":"01...","governorate":"cairo","city":"...","area":"...","address_detail":"...","payment_method":"cod"}}}}
 ```
-IMPORTANT: "items" is an ARRAY. For single product, still use array with 1 item.
-For MFS payments, fill payment_phone_last2 or payment_trx_id.
 
-## DELIVERY
-- ঢাকা: ৳{int(delivery_inside)} (১-২ দিন)
-- ঢাকার বাইরে: ৳{int(delivery_outside)} (৩-৫ দিন){free_note}
-- Product-level delivery_charge overrides this.
-- COD/bKash/Nagad/Rocket accepted. Currency: ৳ (BDT)."""
+## الشحن والتوصيل
+- القاهرة والجيزة: {int(delivery_inside_cairo)} جنيه (1-2 يوم)
+- باقي المحافظات: {int(delivery_outside_cairo)} جنيه (3-5 أيام)
+{free_note}
+- لو في رسوم شحن خاصة بالمنتج — استخدمها بدل الرقم ده
+
+## العملات والدفع
+- العملة: جنيه مصري (ج.م)
+- الدفع: كاش عند التوصيل (COD) / فودافون كاش / انستاباي / فوري
+   {pay_info}"""
 
 
 def get_product_context(products: list[dict]) -> str:
     """Format product list compactly for the system prompt."""
     if not products:
-        return "No products available. Tell customer catalog is being updated."
+        return "مفيش منتجات حالياً. قول للعميل إن الكتالوج بيتحدث."
 
     lines = []
     for p in products:
         name = p["name"]
-        if p.get("name_bn"):
-            name += f" ({p['name_bn']})"
-
         price = p["price"]
         discount = p.get("discount_price")
-        price_str = f"~~৳{price}~~ ৳{discount}" if discount else f"৳{price}"
+        price_str = f"~~{price}~~ {discount} ج.م" if discount else f"{price} ج.م"
 
         stock = p.get("stock_status", "in_stock")
         stock_icon = {"in_stock": "✅", "out_of_stock": "❌", "limited": "⚠️"}.get(stock, "📦")
@@ -130,6 +134,6 @@ def get_product_context(products: list[dict]) -> str:
 
         url = p.get("url")
         if url:
-            lines.append(f"  PRODUCT LINK: {url}")
+            lines.append(f"  رابط المنتج: {url}")
 
     return "\n".join(lines)

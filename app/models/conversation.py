@@ -13,6 +13,7 @@ class Conversation(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("customers.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(20), default="messenger")  # messenger|instagram|whatsapp
     status: Mapped[str] = mapped_column(String(20), default="active")
     started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     last_message_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())

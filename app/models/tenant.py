@@ -13,21 +13,45 @@ class Tenant(Base):
     __tablename__ = "tenants"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+
+    # --- Page connections (multi-channel per page) ---
     fb_page_id: Mapped[Optional[str]] = mapped_column(String(64), unique=True, index=True)
     page_name: Mapped[str] = mapped_column(String(255))
     page_access_token: Mapped[Optional[str]] = mapped_column(Text)
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+
+    # Instagram
+    ig_user_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    ig_access_token: Mapped[Optional[str]] = mapped_column(Text)
+
+    # WhatsApp (via WhatsApp Business API or WAHA)
+    wa_phone_number_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    wa_access_token: Mapped[Optional[str]] = mapped_column(Text)
+    wa_waba_id: Mapped[Optional[str]] = mapped_column(String(64))
+
+    # --- Business info ---
     website_url: Mapped[Optional[str]] = mapped_column(String(512))
     business_phone: Mapped[Optional[str]] = mapped_column(String(20))
     business_email: Mapped[Optional[str]] = mapped_column(String(255))
     notification_pref: Mapped[str] = mapped_column(String(20), default="email")
-    delivery_inside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=80)
-    delivery_outside_dhaka: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=150)
+
+    # --- Egyptian shipping ---
+    delivery_inside_cairo: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=35)
+    delivery_outside_cairo: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), default=60)
     free_delivery_above: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
-    # MFS payment numbers: {"bkash": "017...", "bkash_type": "merchant", ...}
-    mfs_numbers: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
-    # External order API config: {"url": "...", "method": "POST", "auth_type": "api_key", ...}
+
+    # --- Payment methods (Egyptian) ---
+    # {"vodafone_cash": "010...", "instapay": "010...", "fawry": "merchant_code"}
+    payment_methods: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+
+    # --- Per-page personality (auto-built from conversation history) ---
+    style_profile: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    knowledge_base: Mapped[Optional[list]] = mapped_column(JSON, default=None)
+    knowledge_built_at: Mapped[Optional[datetime]] = mapped_column(default=None)
+
+    # --- External order API config ---
     order_api_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(
@@ -41,4 +65,4 @@ class Tenant(Base):
     conversations = relationship("Conversation", back_populates="tenant", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="tenant", cascade="all, delete-orphan")
     crawl_jobs = relationship("CrawlJob", back_populates="tenant", cascade="all, delete-orphan")
-    knowledge_base = relationship("KnowledgeBase", back_populates="tenant", uselist=False)
+    knowledge_base_rel = relationship("KnowledgeBase", back_populates="tenant", uselist=False)

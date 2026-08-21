@@ -31,16 +31,30 @@ async def process_customer_message(
     message_text: str,
     fb_message_id: str | None = None,
     customer_name: str | None = None,
+    channel: str = "messenger",
+    media_urls: list[str] | None = None,
+    audio_urls: list[str] | None = None,
 ) -> str:
-    """Process a customer message and return the AI response."""
+    """Process a customer message and return the AI response.
+
+    channel: 'messenger' | 'instagram' | 'whatsapp'
+    media_urls: image/video URLs from the message
+    audio_urls: voice note URLs to transcribe
+    """
+
+    # 0. Transcribe voice notes if present
+    if audio_urls:
+        transcribed = await _transcribe_audio(audio_urls)
+        if transcribed:
+            message_text = transcribed
 
     # 1. Get or create customer
     customer = await _get_or_create_customer(
-        db, tenant.id, sender_psid, customer_name
+        db, tenant.id, sender_psid, customer_name, channel
     )
 
     # 2. Get or create active conversation
-    conversation = await _get_or_create_conversation(db, tenant.id, customer.id)
+    conversation = await _get_or_create_conversation(db, tenant.id, customer.id, channel)
 
     # 3. Save customer message
     customer_msg = Message(
@@ -49,16 +63,15 @@ async def process_customer_message(
         role="customer",
         content=message_text,
         fb_message_id=fb_message_id,
+        channel=channel,
+        media_urls=media_urls or [],
     )
     db.add(customer_msg)
 
     # 4. Load conversation history
     history = await _load_conversation_history(db, conversation.id)
 
-    # 5. Retrieve relevant products + knowledge from PageIndex tree
-    # LLM reads tree TOC → picks relevant nodes → fetches content
-    # Handles Bangla, Banglish, English, typos, synonyms
-    # Cost: ~50 tokens for TOC navigation
+    # 5. Retrieve relevant products + knowledge
     products_context, knowledge_context = await retrieve_context(
         db, tenant.id, message_text, max_nodes=3
     )
@@ -66,26 +79,34 @@ async def process_customer_message(
     # 6. Detect language
     lang = detect_language(message_text)
 
-    # 7. Build system prompt with tenant's delivery + payment settings
+    # 7. Build system prompt with tenant settings + per-page personality
+    style_profile = tenant.style_profile or {}
     system_prompt = get_system_prompt(
         business_name=tenant.page_name,
         products_context=products_context,
         knowledge_context=knowledge_context,
         language_hint=lang,
-        delivery_inside=float(tenant.delivery_inside_dhaka or 80),
-        delivery_outside=float(tenant.delivery_outside_dhaka or 150),
+        delivery_inside_cairo=float(tenant.delivery_inside_cairo or 35),
+        delivery_outside_cairo=float(tenant.delivery_outside_cairo or 60),
         free_delivery_above=float(tenant.free_delivery_above) if tenant.free_delivery_above else None,
-        mfs_numbers=tenant.mfs_numbers,
+        payment_methods=tenant.payment_methods,
+        style_profile=style_profile,
     )
 
-    # 9. Build messages for LLM
+    # 8. Build messages for LLM
     llm_messages = [{"role": "system", "content": system_prompt}]
     for msg in history:
         role = "user" if msg.role == "customer" else "assistant"
         llm_messages.append({"role": role, "content": msg.content})
-    llm_messages.append({"role": "user", "content": message_text})
 
-    # 10. Call LLM
+    # Add image context if present
+    user_content = message_text
+    if media_urls:
+        user_content += f"\n\n[العميل بعت صور: {', '.join(media_urls[:3])}]"
+
+    llm_messages.append({"role": "user", "content": user_content})
+
+    # 9. Call LLM
     token_info = None
     try:
         llm_result = await chat_completion_with_usage(llm_messages)
@@ -95,25 +116,26 @@ async def process_customer_message(
         logger.error(f"LLM call failed: {e}")
         raw_response = _get_fallback_response(lang)
 
-    # 11. Check for order data in response
+    # 10. Check for order data in response
     order_data = extract_order_from_response(raw_response)
     if order_data:
         await _create_order_from_data(db, tenant, customer, conversation, order_data)
         conversation.status = "order_placed"
 
-    # 12. Clean response (remove JSON blocks)
+    # 11. Clean response
     clean_reply = clean_response_for_customer(raw_response)
 
-    # 13. Save assistant message
+    # 12. Save assistant message
     assistant_msg = Message(
         id=uuid.uuid4(),
         conversation_id=conversation.id,
         role="assistant",
         content=clean_reply,
+        channel=channel,
     )
     db.add(assistant_msg)
 
-    # 14. Track token usage
+    # 13. Track token usage
     if token_info:
         from app.models.token_usage import TokenUsage
         usage = TokenUsage(
@@ -127,15 +149,29 @@ async def process_customer_message(
         )
         db.add(usage)
 
-    # 15. Update conversation timestamp
+    # 14. Update conversation timestamp
     conversation.last_message_at = datetime.utcnow()
     await db.flush()
 
     return clean_reply
 
 
+async def _transcribe_audio(audio_urls: list[str]) -> str | None:
+    """Transcribe voice notes using faster-whisper (local, free)."""
+    try:
+        from app.services.transcription import transcribe_url
+        for url in audio_urls[:1]:  # transcribe first voice note only
+            text = await transcribe_url(url)
+            if text:
+                return text
+    except Exception as e:
+        logger.warning(f"Voice transcription failed: {e}")
+    return None
+
+
 async def _get_or_create_customer(
-    db: AsyncSession, tenant_id: uuid.UUID, psid: str, name: str | None = None
+    db: AsyncSession, tenant_id: uuid.UUID, psid: str, name: str | None = None,
+    channel: str = "messenger",
 ) -> Customer:
     result = await db.execute(
         select(Customer).where(
@@ -150,7 +186,8 @@ async def _get_or_create_customer(
             id=uuid.uuid4(),
             tenant_id=tenant_id,
             fb_psid=psid,
-            name=name or "Customer",
+            name=name or "عميل",
+            channel=channel,
         )
         db.add(customer)
         await db.flush()
@@ -159,9 +196,9 @@ async def _get_or_create_customer(
 
 
 async def _get_or_create_conversation(
-    db: AsyncSession, tenant_id: uuid.UUID, customer_id: uuid.UUID
+    db: AsyncSession, tenant_id: uuid.UUID, customer_id: uuid.UUID,
+    channel: str = "messenger",
 ) -> Conversation:
-    # One conversation per customer per business — always reuse existing
     result = await db.execute(
         select(Conversation)
         .where(
@@ -174,7 +211,6 @@ async def _get_or_create_conversation(
     conversation = result.scalar_one_or_none()
 
     if conversation:
-        # Reactivate if it was closed
         if conversation.status != "active":
             conversation.status = "active"
         return conversation
@@ -184,6 +220,7 @@ async def _get_or_create_conversation(
             id=uuid.uuid4(),
             tenant_id=tenant_id,
             customer_id=customer_id,
+            channel=channel,
         )
         db.add(conversation)
         await db.flush()
@@ -201,7 +238,7 @@ async def _load_conversation_history(
         .limit(MAX_HISTORY_MESSAGES)
     )
     messages = list(result.scalars().all())
-    messages.reverse()  # Oldest first
+    messages.reverse()
     return messages
 
 
@@ -212,12 +249,11 @@ async def _create_order_from_data(
     conversation: Conversation,
     order_data: dict,
 ) -> None:
-    """Create an order from extracted AI data. Supports multi-item cart."""
+    """Create an order from extracted AI data."""
     from app.services.order_service import create_order
     from app.services.notification_service import notify_new_order
     from app.models.product import Product
 
-    # Build items list — find matching products in DB for prices
     order_items = order_data.get("items", [])
     items = []
     for item in order_items:
@@ -253,12 +289,11 @@ async def _create_order_from_data(
     # Update customer details
     customer.name = order_data.get("customer_name", customer.name)
     customer.phone = order_data.get("customer_phone")
-    customer.division = order_data.get("division")
-    customer.district = order_data.get("district")
-    customer.upazila = order_data.get("upazila")
+    customer.governorate = order_data.get("governorate")
+    customer.city = order_data.get("city")
+    customer.area = order_data.get("area")
     customer.address_detail = order_data.get("address_detail")
 
-    # Calculate delivery (use first item's product for product-level override check)
     first_product = None
     if items[0].get("product_id"):
         first_product = await db.get(Product, uuid.UUID(items[0]["product_id"]))
@@ -271,44 +306,17 @@ async def _create_order_from_data(
             conversation_id=conversation.id,
             customer_name=order_data["customer_name"],
             customer_phone=order_data["customer_phone"],
-            division=order_data["division"],
-            district=order_data["district"],
-            upazila=order_data.get("upazila"),
+            governorate=order_data.get("governorate", ""),
+            city=order_data.get("city", ""),
+            area=order_data.get("area"),
             address_detail=order_data["address_detail"],
             payment_method=order_data.get("payment_method", "cod"),
             items=items,
-            delivery_charge=_calc_delivery(tenant, order_data.get("division", ""), items, first_product),
+            delivery_charge=_calc_delivery(tenant, order_data.get("governorate", ""), items, first_product),
         )
 
-        # Save MFS payment verification
-        if order_data.get("payment_phone_last2"):
-            order.payment_phone_last2 = order_data["payment_phone_last2"]
-        if order_data.get("payment_trx_id"):
-            order.payment_trx_id = order_data["payment_trx_id"]
-        await db.flush()
+        logger.info(f"Order {order.order_number} created: {len(items)} items")
 
-        logger.info(f"Order {order.order_number} created: {len(items)} items, ৳{order.total}")
-
-        # Call external order API if configured (use fresh DB session)
-        try:
-            from app.services.order_api_service import call_order_api
-            from app.database import async_session
-            async with async_session() as api_db:
-                # Reload order and tenant in new session
-                from app.models.order import Order as OrderModel
-                from sqlalchemy.orm import selectinload
-                result = await api_db.execute(
-                    select(OrderModel).where(OrderModel.id == order.id).options(selectinload(OrderModel.items))
-                )
-                fresh_order = result.scalar_one_or_none()
-                fresh_tenant = await api_db.get(Tenant, tenant.id)
-                if fresh_order and fresh_tenant:
-                    await call_order_api(api_db, fresh_tenant, fresh_order)
-                    await api_db.commit()
-        except Exception as e:
-            logger.error(f"External order API failed: {e}")
-
-        # Send notification (best effort)
         try:
             await notify_new_order(tenant, order)
         except Exception as e:
@@ -318,11 +326,10 @@ async def _create_order_from_data(
         logger.error(f"Failed to create order: {e}")
 
 
-def _calc_delivery(tenant: Tenant, division: str, items: list[dict], product=None) -> Decimal:
-    """Calculate delivery charge from tenant settings + product overrides."""
+def _calc_delivery(tenant: Tenant, governorate: str, items: list[dict], product=None):
+    """Calculate delivery charge for Egyptian governorates."""
     from decimal import Decimal
 
-    # Check product-level override
     if product and product.attributes:
         prod_delivery = product.attributes.get("delivery_charge")
         if prod_delivery is not None:
@@ -330,23 +337,22 @@ def _calc_delivery(tenant: Tenant, division: str, items: list[dict], product=Non
         if product.attributes.get("free_delivery"):
             return Decimal("0")
 
-    # Calculate subtotal for free delivery check
     subtotal = sum(Decimal(str(i.get("unit_price", 0))) * i.get("quantity", 1) for i in items)
     if tenant.free_delivery_above and subtotal >= tenant.free_delivery_above:
         return Decimal("0")
 
-    # Zone-based from tenant settings
-    is_dhaka = division.lower() in ("dhaka", "ঢাকা")
-    if is_dhaka:
-        return Decimal(str(tenant.delivery_inside_dhaka or 80))
-    return Decimal(str(tenant.delivery_outside_dhaka or 150))
+    # Cairo/Giza = inside, rest = outside
+    is_cairo = governorate.lower() in ("cairo", "giza", "القاهرة", "الجيزة")
+    if is_cairo:
+        return Decimal(str(tenant.delivery_inside_cairo or 35))
+    return Decimal(str(tenant.delivery_outside_cairo or 60))
 
 
 def _get_fallback_response(language: str) -> str:
     """Fallback response when LLM is unavailable."""
-    if language == "bangla":
-        return "দুঃখিত, এই মুহূর্তে আমি উত্তর দিতে পারছি না। অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন। 🙏"
-    elif language == "banglish":
-        return "Sorry, ekhon reply dite parchi na. Please aktu pore abar try korun. 🙏"
+    if language == "arabic":
+        return "لو سمحت، مقدرش أرد دلوقتي. جرب تاني بعد شوية. 🙏"
+    elif language == "arabizi":
+        return "Sorry, msh a2dar arud dilwaqti. Try tani ba3d shwaya. 🙏"
     else:
         return "Sorry, I'm unable to respond at the moment. Please try again shortly. 🙏"
