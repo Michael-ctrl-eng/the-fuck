@@ -353,6 +353,8 @@ class Message(Base):
     is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
     duplicate_of_id: Mapped[str] = mapped_column(String(36), nullable=True)
     media_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    audio_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    transcribed_text: Mapped[str] = mapped_column(Text, default="")
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     sent_at: Mapped[datetime | None] = mapped_column(AwareDateTime, nullable=True)
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict)

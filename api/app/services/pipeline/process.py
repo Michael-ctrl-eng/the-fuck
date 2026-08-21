@@ -36,15 +36,29 @@ def _parse_time(value: str | None) -> datetime | None:
         return None
 
 
-def _extract_media(message: dict[str, Any]) -> list[str]:
-    urls: list[str] = []
+def _extract_media(message: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Return (media_urls, audio_urls) split by attachment type.
+
+    Voice notes are detected from mime_type or file extension and routed to
+    audio_urls (to be transcribed) instead of being sent to the vision model.
+    """
+    from ..ai.transcribe import _classify_attachment
+
+    media: list[str] = []
+    audio: list[str] = []
     for att in (message.get("attachments") or {}).get("data") or []:
-        img = att.get("image_data") or {}
-        vid = att.get("video_data") or {}
-        url = att.get("file_url") or img.get("url") or vid.get("url")
-        if url:
-            urls.append(url)
-    return urls
+        kind = _classify_attachment(att)
+        if kind == "audio":
+            url = att.get("file_url") or ""
+            if url:
+                audio.append(url)
+        elif kind in ("image", "video"):
+            img = att.get("image_data") or {}
+            vid = att.get("video_data") or {}
+            url = att.get("file_url") or img.get("url") or vid.get("url")
+            if url:
+                media.append(url)
+    return media, audio
 
 
 def normalize_message(raw_text: str) -> tuple[str, str]:
@@ -123,8 +137,14 @@ async def _upsert_messages(
                 msg.text_normalized = norm
             if translit and not msg.text_arabizi:
                 msg.text_arabizi = translit
+            media_urls, audio_urls = _extract_media(raw)
+            if media_urls and not msg.media_urls:
+                msg.media_urls = media_urls
+            if audio_urls and not msg.audio_urls:
+                msg.audio_urls = audio_urls
             continue
 
+        media_urls, audio_urls = _extract_media(raw)
         msg = models.Message(
             conversation_id=conv.id,
             source_message_id=mid,
@@ -136,7 +156,8 @@ async def _upsert_messages(
             text_arabizi=translit,
             is_duplicate=bool(dup_of),
             duplicate_of_id=dup_of,
-            media_urls=_extract_media(raw),
+            media_urls=media_urls,
+            audio_urls=audio_urls,
             sequence=seq,
             sent_at=_parse_time(raw.get("created_time")),
         )
@@ -157,6 +178,7 @@ async def ingest_incoming_message(
     text: str,
     created_time: str | None,
     media_urls: list[str] | None = None,
+    audio_urls: list[str] | None = None,
 ) -> models.Message | None:
     """Real-time webhook ingest: upsert a single incoming message.
 
@@ -165,7 +187,8 @@ async def ingest_incoming_message(
     reuse the source_conversation_id namespace.
     """
     media_urls = media_urls or []
-    if (not text or not text.strip()) and not media_urls:
+    audio_urls = audio_urls or []
+    if (not text or not text.strip()) and not media_urls and not audio_urls:
         return None
     if not message_id:
         return None
@@ -220,6 +243,7 @@ async def ingest_incoming_message(
         text_normalized=norm,
         text_arabizi=translit,
         media_urls=media_urls,
+        audio_urls=audio_urls,
         sequence=(seq or 0) + 1,
         sent_at=_parse_time(created_time),
     )

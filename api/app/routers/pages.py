@@ -18,6 +18,7 @@ from ..schemas import (
     PageSyncResponse,
 )
 from ..security import TokenCipher, new_token, token_hash
+from ..services.ai.transcribe import _classify_attachment
 from ..services.meta_client import MetaAPIError, get_meta_client
 from ..services.meta_oauth import build_auth_url, validate_scopes
 from ..services.meta_webhooks import normalize_events, verify_hub_challenge, verify_signature
@@ -272,14 +273,21 @@ async def webhook_events(request: Request, db: DbDep):
         sender = messaging.get("sender", {})
         recipient = messaging.get("recipient", {})
 
-        # extract image/video urls from attachments (vision-enabled replies)
+        # split attachments: images/videos -> vision, audio -> transcription
         media_urls: list[str] = []
+        audio_urls: list[str] = []
         for att in (message.get("attachments") or {}).get("data") or []:
-            img = att.get("image_data") or {}
-            vid = att.get("video_data") or {}
-            url = att.get("file_url") or img.get("url") or vid.get("url")
-            if url:
-                media_urls.append(url)
+            kind = _classify_attachment(att)
+            if kind == "audio":
+                url = att.get("file_url") or ""
+                if url:
+                    audio_urls.append(url)
+            elif kind in ("image", "video"):
+                img = att.get("image_data") or {}
+                vid = att.get("video_data") or {}
+                url = att.get("file_url") or img.get("url") or vid.get("url")
+                if url:
+                    media_urls.append(url)
         if not mid:
             continue
         msg = await ingest_incoming_message(
@@ -292,6 +300,7 @@ async def webhook_events(request: Request, db: DbDep):
             text=text,
             created_time=messaging.get("timestamp"),
             media_urls=media_urls,
+            audio_urls=audio_urls,
         )
         handled += 1
 

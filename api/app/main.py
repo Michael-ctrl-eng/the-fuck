@@ -50,7 +50,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             executor = get_executor()
             await executor.start()
+        from .services.ai.transcribe import prewarm_whisper
+
+        app.state.prewarm_task = asyncio.create_task(prewarm_whisper(settings))
         yield
+        app.state.prewarm_task.cancel()
         if executor is not None:
             await executor.stop()
         from .services.rate_limit import get_rate_limiter

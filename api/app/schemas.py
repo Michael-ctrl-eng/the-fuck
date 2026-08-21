@@ -137,6 +137,8 @@ class MessageOut(BaseModel):
     text_arabizi: str
     is_duplicate: bool
     media_urls: list[str] = []
+    audio_urls: list[str] = []
+    transcribed_text: str = ""
     sequence: int
     sent_at: datetime | None
     created_at: datetime

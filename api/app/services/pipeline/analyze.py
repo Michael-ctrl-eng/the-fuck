@@ -218,6 +218,30 @@ async def analyze_single(ctx: StageContext, conv: models.Conversation, *, force:
     Returns True if an LLM upgrade happened.
     """
     session = ctx.session
+    # Voice notes first: transcribe so analysis covers what was said.
+    # Bounded concurrency; failures never block analysis (voice stays
+    # untranscribed rather than crashing the stage).
+    voice_msgs = [
+        m for m in await _messages(session, conv.id)
+        if (m.audio_urls or []) and not m.transcribed_text
+    ]
+    if voice_msgs:
+        import asyncio
+
+        from ..ai.transcribe import transcribe_message_audio
+
+        _voice_sem = asyncio.Semaphore(2)
+
+        async def _one(m) -> None:
+            async with _voice_sem:
+                try:
+                    await transcribe_message_audio(session, m, ctx.settings)
+                except Exception:
+                    pass
+
+        await asyncio.gather(*(_one(m) for m in voice_msgs[:6]))
+        await ctx.session.commit()
+
     text = await _customer_texts(session, conv)
     llm_upgraded = False
     if text:

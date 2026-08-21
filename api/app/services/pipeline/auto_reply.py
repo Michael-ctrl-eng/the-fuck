@@ -130,6 +130,17 @@ async def handle_auto_reply(
             if trigger is None:
                 return
 
+            # 0) Voice notes: transcribe first so the reply is grounded on
+            #    what was actually said (Egyptian Arabic + English mixed).
+            #    Runs in the background task (never blocks the webhook).
+            if trigger.audio_urls:
+                from ..ai.transcribe import transcribe_message_audio
+
+                transcript = await transcribe_message_audio(session, trigger, settings)
+                if transcript:
+                    await session.commit()
+                    log.info("auto_reply.transcribed", conv_id=conv.id, chars=len(transcript))
+
             # 1) Vision: analyze product images sent by the customer
             vision_products = await _analyze_media(settings, trigger.media_urls or [])
 

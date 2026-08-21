@@ -61,6 +61,20 @@ class Settings(BaseSettings):
     embedding_dim: int = 1024
     embedding_batch_size: int = 16
 
+    # --- Speech-to-text (voice notes) ----------------------------------------
+    # faster-whisper model: tiny | base | small | medium | large-v3
+    # larger models understand Egyptian Arabic + English code-switching better
+    # but are slower; medium is the sweet spot for CPU/laptops.
+    whisper_model: str = "medium"
+    whisper_device: str = "auto"  # auto | cpu | cuda
+    whisper_compute_type: str = "auto"  # auto | int8 | float16 | float32
+    whisper_language: str = ""  # empty => auto-detect (Arabic + English mixed)
+    whisper_max_audio_seconds: int = 900  # cap per voice note (15 min)
+    whisper_download_timeout: float = 30.0  # seconds to download the audio file
+    whisper_max_audio_bytes: int = 50 * 1024 * 1024  # hard size cap (50 MB)
+    whisper_concurrency: int = 2  # parallel transcriptions across pages
+    whisper_beam_size: int = 1  # 1 = fastest, 5 = most accurate
+
     # --- Knock notifications -------------------------------------------------
     knock_api_key: str = ""
     knock_signing_key: str = ""
