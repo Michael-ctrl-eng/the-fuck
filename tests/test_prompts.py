@@ -13,11 +13,11 @@ class TestPrompts:
 
     def test_system_prompt_contains_language_rules(self):
         prompt = get_system_prompt("Test", "products", "auto")
-        assert "Arabic" in prompt or "arabic" in prompt.lower()
+        assert "المصرية" in prompt or "عامية" in prompt
 
     def test_system_prompt_contains_order_instructions(self):
         prompt = get_system_prompt("Test", "products", "auto")
-        assert "Governorate" in prompt or "governorate" in prompt.lower()
+        assert "المحافظة" in prompt or "governorate" in prompt.lower()
         assert "COD" in prompt
 
     def test_product_context_empty(self):

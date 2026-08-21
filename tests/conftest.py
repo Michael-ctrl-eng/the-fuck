@@ -112,7 +112,7 @@ async def test_products(db_session, test_tenant):
             source="manual",
             attributes={
                 "name_ar": "جلابية قطن",
-                description: "Premium quality cotton galabiya",
+                "description": "Premium quality cotton galabiya",
                 "discount_price": 1200,
                 "category": "Clothing",
                 "sku": "GAL-001",
