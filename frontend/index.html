@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raqib — بيع أوتوماتيك 24/7 لصفحتك</title>
+<meta name="description" content="وكيل ذكاء اصطناعي بيرد على عملاء صفحتك على Messenger وInstagram وWhatsApp — يفهم العامية والفويس والصور، ويجمع الطلبات بنفسه.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/frontend/css/style.css">
+</head>
+<body>
+
+<!-- ═══════════ NAVBAR ═══════════ -->
+<header class="nav" id="navbar">
+  <div class="container nav-inner">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 32 32" class="brand-glyph" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#F54E00"/><path d="M11 23V9h6.2c2.9 0 4.8 1.7 4.8 4.2 0 1.9-1.05 3.3-2.75 3.9L22.5 23h-3.4l-2.85-5.2H14V23h-3zm3-7.6h2.9c1.35 0 2.15-.8 2.15-2s-.8-2-2.15-2H14v4z" fill="#fff"/></svg>
+      <span>raqib</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#channels">القنوات</a>
+      <a href="#features">المميزات</a>
+      <a href="#pricing">الأسعار</a>
+      <a href="#faq">أسئلة شائعة</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="#demo">شوف الديمو</a>
+      <a class="btn btn-primary" href="#cta">ابدأ مجاناً</a>
+    </div>
+    <button class="nav-burger" id="burger" aria-label="القائمة"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero">
+  <div class="blob blob-a"></div><div class="blob blob-b"></div><div class="blob blob-c"></div>
+  <div class="container hero-inner">
+    <div class="hero-copy reveal">
+      <span class="chip chip-mint">🟢 شغّال دلوقتي — بيرد في أقل من ٣ ثواني</span>
+      <h1>حوّل صفحتك<br><span class="grad">لمبيعات أوتوماتيك</span><br>24/7</h1>
+      <p class="lead">راقب بيرد على عملائك بدلاً منك — يفهم العامية المصرية، يسمع الفويس نوتس، يشوف صور المنتجات، ويجمع الطلب كامل بالعنوان والشحن… وبعدين يسيبلك رسالة إن الطلب اتحجز.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" href="#cta">وصّل صفحتك في دقيقتين</a>
+        <a class="btn btn-outline btn-lg" href="#demo">جرّب المحادثة ⚡</a>
+      </div>
+      <p class="social-proof">بيثق فينا أصحاب صفحات ملابس، إكسسوارات، وأكل بيتي في كل محافظات مصر 🇪🇬</p>
+    </div>
+
+    <!-- Live chat demo -->
+    <div class="chat-window reveal" id="demo" aria-label="عرض حي للمحادثة">
+      <div class="chat-head">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <strong>Messenger · متجر النيل للأزياء</strong>
+        <span class="live-badge">LIVE</span>
+      </div>
+      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-foot">
+        <span>مدفوع بالذكاء الاصطناعي · Gemini + faster-whisper</span>
+        <code>100% مجاني</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marquee pill clouds -->
+  <div class="pills-section">
+    <p class="pills-title">مدمج من الأول مع كل اللي محتاجه:</p>
+    <div class="marquee" data-dir="rtl"><div class="marquee-track">
+      <span class="pill p-blue">Messenger</span><span class="pill p-mint">Instagram DMs</span><span class="pill p-green">WhatsApp Business</span><span class="pill p-yellow">🎤 فويس نوت بالعامية</span><span class="pill p-pink">🖼️ تحليل صور المنتجات</span><span class="pill p-blue">كتالوج منتجات مرن</span><span class="pill p-mint">شحن 27 محافظة</span><span class="pill p-green">فودافون كاش</span><span class="pill p-yellow">انستاباي</span><span class="pill p-pink">فوري</span><span class="pill p-blue">تقارير يومية</span><span class="pill p-mint">شخصية صفحتك الخاصة</span>
+    </div></div>
+    <div class="marquee" data-dir="ltr"><div class="marquee-track">
+      <span class="pill p-green">رد تلقائي 24/7</span><span class="pill p-yellow">جمع طلبات كامل</span><span class="pill p-blue">كاش عند الاستلام</span><span class="pill p-mint">حساب شحن تلقائي</span><span class="pill p-pink">إيميل فوري لصاحب الصفحة</span><span class="pill p-green">بيتعلم أسلوب صفحتك</span><span class="pill p-blue">Arabizi? مفيش مشكلة</span><span class="pill p-yellow">English? تمام كمان</span><span class="pill p-mint">مفيش عمولة على المبيعات</span><span class="pill p-pink">Docker بنشر واحدة</span>
+    </div></div>
+  </div>
+</section>
+
+<!-- ═══════════ TRUST WALL ═══════════ -->
+<section class="trust reveal">
+  <div class="container">
+    <p class="trust-title">شغّال فوق البنية اللي بتشتغل بيها فعلاً:</p>
+    <div class="trust-row">
+      <span class="tbadge tb-fb">Facebook Graph API</span>
+      <span class="tbadge tb-ig">Instagram Graph API</span>
+      <span class="tbadge tb-wa">WhatsApp Cloud API</span>
+      <span class="tbadge tb-gem">Google Gemini</span>
+      <span class="tbadge tb-or">OpenRouter</span>
+      <span class="tbadge_tb tw">faster-whisper</span>
+      <span class="tbadge tb-fast">FastAPI</span>
+      <span class="tbadge tb-pg">PostgreSQL</span>
+      <span class="tbadge tb-dock">Docker</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CHANNELS ═══════════ -->
+<section id="channels" class="section">
+  <div class="container">
+    <div class="section-head reveal">
+      <h2>كل قنواتك شغالة مع بعض</h2>
+      <p>وصّل الصفحة مرة واحدة — راقب يستقبل ويرد على كل المنصات بنفس الشخصية ونفس الأسعار.</p>
+    </div>
+    <div class="grid-3">
+      <article class="card reveal">
+        <div class="card-icon ci-fb"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.25-1.5 1.55-1.5H16.7V3.6c-.3-.04-1.27-.13-2.4-.13-2.4 0-4 1.45-4 4.1v2.3H7.6V13h2.7v8z"/></svg></div>
+        <h3>Messenger</h3>
+        <p>بيرد على كل رسايل الصفحة — نصوص وصور وفويس — بحضور "بيكتب…" زي البني آدم بالظبط.</p>
+        <ul><li>قراءة وتسليم receipts</li><li>Quick replies جاهزة</li><li>Postbacks من الأزرار</li></ul>
+      </article>
+      <article class="card reveal">
+        <div class="card-icon ci-ig"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.2c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92C2.17 15.62 2.16 15.24 2.16 12s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.18 8.8 2.16 12 2.16zm0 3.68a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-10.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/></svg></div>
+        <h3>Instagram DMs</h3>
+        <p>ستوري ريبلايز، ريلز، وصور — بيحللها ويرد بنفس نبرة البراند بتاعك.</p>
+        <ul><li>Story mentions & replies</li><li>Reels & shared posts</li><li>Fallback ذكي لحسابات FB المرتبطة</li></ul>
+      </article>
+      <article class="card reveal">
+        <div class="card-icon ci-wa"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.05-1 .07-1.6-.1a14 14 0 0 1-1.5-.55c-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1-1.4-1-2.6s.6-1.8.9-2c.2-.3.5-.35.7-.35h.5c.15 0 .35-.05.55.4l.75 1.8c.05.15.1.3 0 .5l-.35.5-.25.3c-.1.1-.2.25-.1.45.1.2.55.95 1.2 1.55.85.75 1.55 1 1.75 1.1.2.1.35.1.5-.05l.7-.85c.2-.2.35-.15.55-.1l1.7.8c.2.1.4.15.45.25.05.15.05.6-.15 1.15z"/></svg></div>
+        <h3>WhatsApp</h3>
+        <p>Cloud API رسمي — أزرار interactive، لينكات، ومستندات، وكل حاجة توصل للعميل على الواتس نفسه.</p>
+        <ul><li>Interactive buttons</li><li>Media & documents</li><li>Delivery status tracking</li></ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES (alternating) ═══════════ -->
+<section id="features" class="section section-tint">
+  <div class="container feature-row reveal">
+    <div class="feature-copy">
+      <span class="kicker chip chip-yellow">يسمع 👂</span>
+      <h2>الفويس نوت؟ مفهوم بالعامية</h2>
+      <p>العميل يبعت رسالة صوتية "عندك مقاس ٤٢؟" — راقب يحوّلها لنص محليًا بأسرع من أي حد يسمعها، وبعدين يرد عادي. كله على سيرفرك، صفر تكلفة.</p>
+      <ul class="ticks"><li>faster-whisper محلي — خصوصية كاملة</li><li>يفهم المصري والإنجليزي والعربيزي</li><li>مش محتاج أي خدمة مدفوعة</li></ul>
+    </div>
+    <div class="feature-visual voice-card">
+      <div class="wave"><i style="--d:.0s"></i><i style="--d:.1s"></i><i style="--d:.2s"></i><i style="--d:.3s"></i><i style="--d:.15s"></i><i style="--d:.25s"></i><i style="--d:.05s"></i><i style="--d:.35s"></i><i style="--d:.2s"></i><i style="--d:.1s"></i></div>
+      <p class="transcript">"عندك مقاس 42 كوتشي أبيض؟" <span class="ok">✓ تم التحويل</span></p>
+    </div>
+  </div>
+
+  <div class="container feature-row flip reveal">
+    <div class="feature-copy">
+      <span class="kicker chip chip-pink">يشوف 👀</span>
+      <h2>صورة المنتج = فهم فوري</h2>
+      <p>عميل يبعت صورة حاجة شافها في مكان تاني؟ Gemini Vision بتوصفها وتطابقها مع كتالوجك ويقترح الأقرب بسعره.</p>
+      <ul class="ticks"><li>تحليل صور مجاني ضمن الخطة المجانية</li><li>مطابقة تلقائية مع منتجاتك</li><li>لو مش موجود — يقترح البديل الذكي</li></ul>
+    </div>
+    <div class="feature-visual vision-card">
+      <div class="img-ph">👟<span>customer.jpg</span></div>
+      <div class="scanline"></div>
+      <div class="vision-result"><b>Kicks Runner White</b><span>متطابق ✓ · 850 ج.م · متوفر ✅</span></div>
+    </div>
+  </div>
+
+  <div class="container feature-row reveal">
+    <div class="feature-copy">
+      <span class="kicker chip chip-blue">يتعلم 🧠</span>
+      <h2>شخصية صفحتك… صفحتك</h2>
+      <p>راقب بيذاكر محادثات صفحتك القديمة ويبني شخصية خاصة بيها: ترحيبك، خاتمتك، استخدام الإيموجي، درجة الرسمية. العميل هيحس إن ده نفس اللي بيرد عليه دايمًا.</p>
+      <ul class="ticks"><li>Style profile تلقائي لكل صفحة</li><li>أوامر صاحب الصفحة بالعامية: "حدّث سعر التيشيرت لـ ٢٥٠"</li><li>بيع مؤدب بس حاد — زي البائع الشاطر</li></ul>
+    </div>
+    <div class="feature-visual style-card">
+      <code class="json-demo">{<br>"tone": "friendly",<br>"greeting": "أهلاً بيك يا فندم 🙌",<br>"emoji_use": 0.72,<br>"avg_length": "2-4 sentences"<br>}</code>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ STATS ═══════════ -->
+<section class="stats reveal">
+  <div class="container grid-4">
+    <div class="stat"><b data-count="24">0</b><span>/7 شغّال — من غير نوم ولا اجازات</span></div>
+    <div class="stat"><b data-count="3" data-suffix="<3s">0</b><span>ثواني متوسط زمن الرد</span></div>
+    <div class="stat"><b data-count="27">0</b><span>محافظة بأسعار شحن دقيقة</span></div>
+    <div class="stat"><b data-count="0" data-prefix="$">0</b><span>تكلفة تشغيل الشهر الأول</span></div>
+  </div>
+</section>
+
+<!-- ═══════════ PRICING ═══════════ -->
+<section id="pricing" class="section">
+  <div class="container">
+    <div class="section-head reveal">
+      <h2>التسعير حسب الاستخدام 💸</h2>
+      <p>فلسفتنا ببساطة: ماتخافش من الفاتورة. كل حاجة عندها حصة مجانية سخية — وفي حالتنا الحصة المجانية دي تغطي أغلب الصفحات من غير ما تدفع قرش.</p>
+    </div>
+    <div class="price-table reveal">
+      <div class="pt-head"><span>#</span><span>المورد</span><span>الحصة المجانية</span><span>بعدها</span></div>
+      <div class="pt-row"><i>1</i><b>رسائل محادثة</b><span>1,000 رسالة/شهر</span><span>$0 — مجاني</span></div>
+      <div class="pt-row"><i>2</i><b>تفريغ فويس نوت</b><span>غير محدود (محلي)</span><span>$0 — مجاني</span></div>
+      <div class="pt-row"><i>3</i><b>تحليل صور</b><span>ضمن حصة Gemini اليومية</span><span>$0 — مجاني</span></div>
+      <div class="pt-row"><i>4</i><b>زحف كتالوج موقعك</b><span>غير محدود</span><span>$0 — مجاني</span></div>
+      <div class="pt-row total"><i>Σ</i><b>الإجمالي المتوقع لأغلب الصفحات</b><span colspan="2">$0 / شهر</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ SHAMELESS CTA ═══════════ -->
+<section class="shameless reveal">
+  <div class="container shameless-inner">
+    <div class="product-card">
+      <div class="pc-badge">🌱 صديق للبيئة</div>
+      <h3>Raqib Web</h3>
+      <p class="pc-sub">إصدار القرص المدمج*</p>
+      <div class="pc-art">💿</div>
+      <ul class="pc-specs">
+        <li>✔️ تحميل رقمي فوري</li>
+        <li>✔️ Docker Compose بنشر واحدة</li>
+        <li>✔️ تحديثات مجانية للأبد</li>
+      </ul>
+      <div class="pc-price"><s>$99</s><b>$0</b><span>Free!! &lt;&gt; باقي 10,000 نسخة بالسعر ده!!</span></div>
+      <a class="btn btn-primary btn-block" href="#cta">احجز نسختك دلوقتي</a>
+      <p class="pc-note">*راقب منتج ويب ومش بينزل على CD.<br>بس مرة واحدة بعتنا لعميل قرص فيه Rickroll — على مسؤوليته.</p>
+    </div>
+    <div class="shameless-copy">
+      <h2>الـ CTA المخجل 😅</h2>
+      <p>لو كل اللي فوق ده مقنعكش، يبقى هنستخدم أقوى تكتيكات التسويق الكلاسيكية: عدّاد استعجال، سعر مشطوب، وكلمة "مجاني" بخط كبير.</p>
+      <p class="big-free">هو مجاني. بص. <b>مجــاني.</b></p>
+      <a class="btn btn-primary btn-lg" href="#cta">يلا نبدأ بقة</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ WHY ═══════════ -->
+<section class="section section-tint">
+  <div class="container narrow reveal">
+    <h2>ليه راقب؟</h2>
+    <ul class="why-list">
+      <li><b>شفافية كاملة.</b> الكود قدامك، البيانات عندك على سيرفرك، ومفيش قفل على أي مزود.</li>
+      <li><b>مفيش عمولة مبيعات.</b> اتباع 100 ألف جنيه؟ عمولتنا = صفر جنيه.</li>
+      <li><b>بيتكلم مصري بجد.</b> مش ترجمة حرفية من إنجليزي — عامية شوارع بروح البيع المصري.</li>
+      <li><b>نشر بـ 5 دقايق.</b> docker-compose up وخلاص — صفحتك بتتكلم لوحدها.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════ FAQ ═══════════ -->
+<section id="faq" class="section">
+  <div class="container narrow">
+    <h2 class="reveal">أسئلة بيتسأل كتير</h2>
+    <details class="faq reveal"><summary>هل ده هيرد مكان فريق الدعم بتاعي؟</summary><p>راقب بياخد السؤال الأول (80% من الرسايل متكررة: سعر، مقاس، شحن). أي حاجة معقدة بيحولها ليك مع ملخص جاهز.</p></details>
+    <details class="faq reveal"><summary>بيفهم العربيزي فعلاً؟</summary><p>"ana 3ayez el 3aba da" — بيفهمها ويرد بالمثل. كمان English سلس لو العميل كتب إنجليزي.</p></details>
+    <details class="faq reveal"><summary>بيانات عملائي بتروح فين؟</summary><p>على PostgreSQL بتاعك. التفريغ الصوتي بيحصل محليًا على سيرفرك. مفيش طرف تالت بياخد حاجة.</p></details>
+    <details class="faq reveal"><summary>محتاج بطاقة بنكية للتشغيل؟</summary><p>لأ. Gemini وOpenRouter خططهم المجانية تكفي، والباقي open-source محلي بالكامل.</p></details>
+    <details class="faq reveal"><summary>أقدر أوقفه مؤقتًا؟</summary><p>زرار واحد من الداشبورد — أو ابعت لصفحتك "وقّف" وأنت الأدمن وهيفهم.</p></details>
+  </div>
+</section>
+
+<!-- ═══════════ FINAL CTA ═══════════ -->
+<section id="cta" class="final-cta">
+  <div class="blob blob-a"></div><div class="blob blob-c"></div>
+  <div class="container center reveal">
+    <h2>صفحتك بتضيع رسايل وهي مقفولة؟</h2>
+    <p>خلّي راقب يسهر بدالك الليلة.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-light btn-lg" href="/dashboard/login">ابدأ مجاناً دلوقتي</a>
+      <a class="btn btn-ghost-light btn-lg" href="/docs">اطلع على الـ API</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="footer">
+  <div class="container footer-grid">
+    <div>
+      <a class="brand" href="/">
+        <svg viewBox="0 0 32 32" class="brand-glyph" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#F54E00"/><path d="M11 23V9h6.2c2.9 0 4.8 1.7 4.8 4.2 0 1.9-1.05 3.3-2.75 3.9L22.5 23h-3.4l-2.85-5.2H14V23h-3zm3-7.6h2.9c1.35 0 2.15-.8 2.15-2s-.8-2-2.15-2H14v4z" fill="#fff"/></svg>
+        <span>raqib</span>
+      </a>
+      <p class="foot-tag">وكيل مبيعات ذكي للصفحات المصرية.<br>مبني بحب في القاهرة 🇪🇬</p>
+    </div>
+    <div><h4>المنتج</h4><a href="#channels">القنوات</a><a href="#features">المميزات</a><a href="#pricing">الأسعار</a><a href="/docs">API Docs</a></div>
+    <div><h4>الدعم</h4><a href="#faq">أسئلة شائعة</a><a href="/dashboard/login">دخول العملاء</a><a href="#demo">ديمو مباشر</a></div>
+    <div><h4>المصدر المفتوح</h4><a href="https://github.com/Michael-ctrl-eng/the-fuck/tree/raqib-agent">GitHub</a><a href="#">Changelog</a><a href="#">Roadmap</a></div>
+  </div>
+  <div class="container foot-base"><span>© 2026 Raqib Agent</span><span>صُنع بـ FastAPI + Gemini + كثير شاي كشري ☕</span></div>
+</footer>
+
+<script src="/frontend/js/main.js"></script>
+</body>
+</html>

@@ -98,10 +98,12 @@ from app.api.dashboard import dashboard_router  # noqa: E402
 app.include_router(dashboard_router)
 
 
-# Redirect root to dashboard
-from fastapi.responses import RedirectResponse  # noqa: E402
+# Serve the marketing landing page + its assets
+from fastapi.responses import FileResponse  # noqa: E402
+
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
 
 @app.get("/", include_in_schema=False)
-async def root_redirect():
-    return RedirectResponse(url="/dashboard")
+async def landing():
+    return FileResponse("frontend/index.html")
