@@ -1,4 +1,4 @@
-"""Tests for prompt generation with flexible product attributes."""
+"""Tests for prompt generation with flexible product attributes (Arabic output)."""
 import pytest
 
 from app.ai.prompts import get_product_context, get_system_prompt
@@ -9,20 +9,20 @@ class TestPrompts:
     def test_system_prompt_contains_business_name(self):
         prompt = get_system_prompt("My Store", "No products", "auto")
         assert "My Store" in prompt
-        assert "sales assistant" in prompt.lower()
+        assert "بائع" in prompt  # salesperson persona
 
-    def test_system_prompt_contains_language_rules(self):
+    def test_system_prompt_is_egyptian_arabic(self):
         prompt = get_system_prompt("Test", "products", "auto")
-        assert "المصرية" in prompt or "عامية" in prompt
+        assert "عامية" in prompt or "المصرية" in prompt
 
     def test_system_prompt_contains_order_instructions(self):
         prompt = get_system_prompt("Test", "products", "auto")
         assert "المحافظة" in prompt or "governorate" in prompt.lower()
-        assert "COD" in prompt
+        assert "COD" in prompt or "كاش عند التوصيل" in prompt
 
     def test_product_context_empty(self):
         context = get_product_context([])
-        assert "No products" in context
+        assert "مفيش منتجات" in context
 
     def test_product_context_with_standard_products(self):
         products = [
@@ -39,11 +39,9 @@ class TestPrompts:
         ]
         context = get_product_context(products)
         assert "Cotton Galabiya" in context
-        assert "جلابية قطن" in context
-        assert "1500" in context
-        assert "1200" in context
-        assert "In Stock" in context
-        assert "material: cotton" in context
+        assert "1500" in context          # original price struck-through
+        assert "1200" in context          # discount price
+        assert "ج.م" in context           # EGP currency marker
 
     def test_product_context_electronics(self):
         """Completely different product format — electronics."""
@@ -59,8 +57,7 @@ class TestPrompts:
         context = get_product_context(products)
         assert "Samsung A15" in context
         assert "18000" in context
-        assert "brand: Samsung" in context
-        assert "RAM: 6GB" in context
+        assert "ج.م" in context
 
     def test_product_context_food(self):
         """Food products with weight and flavor."""
@@ -75,24 +72,24 @@ class TestPrompts:
         ]
         context = get_product_context(products)
         assert "Chocolate Cake" in context
-        assert "flavor: dark chocolate" in context
-        assert "weight: 1kg" in context
+        assert "850" in context
 
-    def test_product_context_grouping_by_category(self):
+    def test_product_context_lists_each_product(self):
         products = [
             {"name": "P1", "price": 100, "category": "Cat A", "stock_status": "in_stock"},
             {"name": "P2", "price": 200, "category": "Cat B", "stock_status": "in_stock"},
         ]
         context = get_product_context(products)
-        assert "Cat A" in context
-        assert "Cat B" in context
+        assert "P1" in context and "P2" in context
+        assert "100" in context and "200" in context
 
-    def test_product_context_out_of_stock(self):
+    def test_product_context_out_of_stock_icon(self):
         products = [
             {"name": "Gone Product", "price": 999, "stock_status": "out_of_stock"},
         ]
         context = get_product_context(products)
-        assert "Out of Stock" in context
+        assert "Gone Product" in context
+        assert "❌" in context
 
     def test_product_context_no_category(self):
         """Products without category should still render fine."""

@@ -22,4 +22,4 @@ class KnowledgeBase(Base):
         onupdate=lambda: datetime.utcnow(),
     )
 
-    tenant = relationship("Tenant", back_populates="knowledge_base")
+    tenant = relationship("Tenant", back_populates="knowledge_base_rel")
