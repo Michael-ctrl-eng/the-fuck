@@ -11,10 +11,13 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup — auto-create missing tables
+    # Startup — auto-create missing tables (non-blocking: app must boot even without DB)
+    import asyncio
+
     from sqlalchemy import text
     from app.database import engine
-    try:
+
+    async def _run_startup_migrations():
         async with engine.begin() as conn:
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS token_usage (
@@ -64,6 +67,10 @@ async def lifespan(app: FastAPI):
                     await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}"))
                 except Exception:
                     pass
+
+    try:
+        # Hard cap: if DB is unreachable, boot anyway instead of hanging startup
+        await asyncio.wait_for(_run_startup_migrations(), timeout=6)
     except Exception:
         pass  # DB may not be ready yet
     yield

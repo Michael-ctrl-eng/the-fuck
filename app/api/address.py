@@ -28,7 +28,13 @@ async def list_areas(governorate: str = Query(...)):
 
 @router.get("/shipping")
 async def shipping_cost(governorate: str = Query(...), subtotal: float = 0):
-    return {"shipping_cost": float(calculate_shipping(governorate, subtotal))}
+    result = calculate_shipping(governorate, subtotal)
+    return {
+        "governorate": governorate,
+        "shipping_cost": result["cost"],
+        "free": result.get("free", False),
+        "message": result.get("message", ""),
+    }
 
 
 @router.get("/validate")

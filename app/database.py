@@ -10,6 +10,7 @@ engine = create_async_engine(
     echo=settings.APP_DEBUG,
     pool_size=20,
     max_overflow=10,
+    connect_args={"timeout": 5},  # fail fast when Postgres is down — never hang startup
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
