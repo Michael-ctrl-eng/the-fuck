@@ -5,7 +5,7 @@ from app.config import get_settings
 settings = get_settings()
 
 celery_app = Celery(
-    "mama_sales",
+    "raqib_agent",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
 )

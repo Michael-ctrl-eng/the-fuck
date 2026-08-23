@@ -104,8 +104,8 @@ async def _call_openrouter(
     headers = {
         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://mama-sales-agent.local",
-        "X-Title": "Mama Sales Agent",
+        "HTTP-Referer": "https://raqib-agent.local",
+        "X-Title": "Raqib Agent",
     }
     payload = {
         "model": model,

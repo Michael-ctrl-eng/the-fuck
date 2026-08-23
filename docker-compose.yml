@@ -2,8 +2,8 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: mama
-      POSTGRES_PASSWORD: mama_secret
+      POSTGRES_USER: raqib
+      POSTGRES_PASSWORD: raqib_secret
       POSTGRES_DB: raqib_agent
     ports:
       - "5432:5432"
@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mama -d raqib_agent"]
+      test: ["CMD-SHELL", "pg_isready -U raqib -d raqib_agent"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -32,8 +32,8 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://mama:mama_secret@db:5432/raqib_agent
-      - DATABASE_URL_SYNC=postgresql://mama:mama_secret@db:5432/raqib_agent
+      - DATABASE_URL=postgresql+asyncpg://raqib:raqib_secret@db:5432/raqib_agent
+      - DATABASE_URL_SYNC=postgresql://raqib:raqib_secret@db:5432/raqib_agent
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app
@@ -48,8 +48,8 @@ services:
     build: .
     env_file: .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://mama:mama_secret@db:5432/raqib_agent
-      - DATABASE_URL_SYNC=postgresql://mama:mama_secret@db:5432/raqib_agent
+      - DATABASE_URL=postgresql+asyncpg://raqib:raqib_secret@db:5432/raqib_agent
+      - DATABASE_URL_SYNC=postgresql://raqib:raqib_secret@db:5432/raqib_agent
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - .:/app

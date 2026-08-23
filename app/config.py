@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://mama:mama_secret@localhost:5432/raqib_agent"
-    DATABASE_URL_SYNC: str = "postgresql://mama:mama_secret@localhost:5432/raqib_agent"
+    DATABASE_URL: str = "postgresql+asyncpg://raqib:raqib_secret@localhost:5432/raqib_agent"
+    DATABASE_URL_SYNC: str = "postgresql://raqib:raqib_secret@localhost:5432/raqib_agent"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

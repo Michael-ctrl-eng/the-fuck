@@ -216,7 +216,7 @@ class TestSystemFlow:
         resp = await client.get("/openapi.json")
         assert resp.status_code == 200
         schema = resp.json()
-        assert schema["info"]["title"] == "Mama Sales Agent"
+        assert schema["info"]["title"] == "Raqib Agent"
         # Verify all tag groups exist
         tags = [t["name"] for t in schema.get("tags", [])] if "tags" in schema else []
         paths = list(schema.get("paths", {}).keys())

@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Mama Sales Agent</h1>
+  <h1 align="center">Raqib Agent</h1>
   <p align="center">
     AI-powered sales chatbot platform for Bangladeshi Facebook pages.
     <br />
@@ -20,9 +20,9 @@
 
 ---
 
-## What is Mama Sales Agent?
+## What is Raqib Agent?
 
-Mama Sales Agent is an open-source, multi-tenant AI sales chatbot platform built for Bangladeshi e-commerce businesses that sell through Facebook pages. Page owners connect their business, and an AI agent handles customer conversations — answering product questions, collecting orders, and notifying shop owners — all in the customer's preferred language.
+Raqib Agent is an open-source, multi-tenant AI sales chatbot platform built for Bangladeshi e-commerce businesses that sell through Facebook pages. Page owners connect their business, and an AI agent handles customer conversations — answering product questions, collecting orders, and notifying shop owners — all in the customer's preferred language.
 
 **The problem:** Thousands of Bangladeshi small businesses sell through Facebook pages but manually reply to every customer message. They miss orders, respond late, and can't scale.
 
@@ -92,8 +92,8 @@ AI Agent: Bhai, ki obostha? 😊
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/mama-sales-agent.git
-cd mama-sales-agent
+git clone https://github.com/your-username/raqib-agent.git
+cd raqib-agent
 ```
 
 ### 2. Set up environment
@@ -264,7 +264,7 @@ Website URL ──▶ Quick Test (httpx)
 ## Project Structure
 
 ```
-mama_sales_agent/
+raqib_agent/
 │
 ├── app/                          # Main application package
 │   ├── main.py                   # FastAPI app factory, lifespan, route registration
@@ -499,7 +499,7 @@ All configuration is via environment variables (`.env` file). See [`.env.example
 | `JWT_SECRET_KEY` | `change-me...` | Secret for JWT signing (change in production!) |
 | `FB_APP_ID` | — | Facebook App ID (for Messenger integration) |
 | `FB_APP_SECRET` | — | Facebook App Secret |
-| `FB_VERIFY_TOKEN` | `mama-verify-token` | Webhook verification token |
+| `FB_VERIFY_TOKEN` | `raqib-verify-token` | Webhook verification token |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | — | Email notification settings |
 
 ---
@@ -661,8 +661,8 @@ Contributions are welcome! Please:
 
 ```bash
 # Clone & setup
-git clone https://github.com/your-username/mama-sales-agent.git
-cd mama-sales-agent
+git clone https://github.com/your-username/raqib-agent.git
+cd raqib-agent
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 

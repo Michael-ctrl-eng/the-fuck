@@ -622,8 +622,8 @@ Suites (≥120 tests):
 ## SECTION 12 — CONFIG (.env.example ships complete)
 
 ```
-DATABASE_URL=postgresql+asyncpg://mama:mama_secret@localhost:5432/raqib_agent
-DATABASE_URL_SYNC=postgresql://mama:mama_secret@localhost:5432/raqib_agent
+DATABASE_URL=postgresql+asyncpg://raqib:raqib_secret@localhost:5432/raqib_agent
+DATABASE_URL_SYNC=postgresql://raqib:raqib_secret@localhost:5432/raqib_agent
 REDIS_URL=redis://localhost:6379/0
 JWT_SECRET_KEY=change-me-to-a-random-secret-key
 OPENROUTER_API_KEY= OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
